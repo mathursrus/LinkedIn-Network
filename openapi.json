@@ -1,0 +1,55 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LinkedIn Network Builder",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://6b92-24-18-57-218.ngrok-free.app",
+      "description": "Local endpoint"
+    }
+  ],
+  "paths": {
+    "/browse_company_people": {
+      "get": {
+        "operationId": "browse_company_people",
+        "summary": "Get people at a company from LinkedIn",
+        "parameters": [
+          {
+            "name": "company",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A list of people",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "people": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "role": { "type": "string" },
+                          "location": { "type": "string" },
+                          "connection_level": { "type": "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

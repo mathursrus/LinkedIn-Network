@@ -1,0 +1,4 @@
+azure-functions
+playwright==1.41.2
+pydantic==2.6.1
+python-dotenv==1.0.1 

@@ -6,42 +6,171 @@
   },
   "servers": [
     {
-      "url": "https://6b92-24-18-57-218.ngrok-free.app",
+      "url": "https://8140-24-18-57-218.ngrok-free.app",
       "description": "Local endpoint"
     }
   ],
   "paths": {
     "/browse_company_people": {
       "get": {
-        "operationId": "browse_company_people",
+        "operationId": "browse_public_linkedin",
         "summary": "Get people at a company from LinkedIn",
         "parameters": [
           {
             "name": "company",
             "in": "query",
             "required": true,
-            "schema": { "type": "string" }
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "A list of people",
+            "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["processing", "complete", "error"]
+                    },
+                    "company": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
                     "people": {
                       "type": "array",
                       "items": {
                         "type": "object",
                         "properties": {
-                          "name": { "type": "string" },
-                          "role": { "type": "string" },
-                          "location": { "type": "string" },
-                          "connection_level": { "type": "integer" }
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "profile_url": {
+                            "type": "string"
+                          },
+                          "connection_level": {
+                            "type": "integer",
+                            "enum": [1, 2]
+                          },
+                          "mutual_connections": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "role": {
+                                  "type": "string"
+                                },
+                                "location": {
+                                  "type": "string"
+                                },
+                                "profile_url": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
                         }
                       }
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/find_mutual_connections": {
+      "get": {
+        "summary": "Find mutual connections between a person and a company",
+        "operationId": "find_mutual_connections",
+        "parameters": [
+          {
+            "name": "person",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "company",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": ["processing", "complete", "error"]
+                    },
+                    "person": {
+                      "type": "string"
+                    },
+                    "company": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "mutual_connections": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "role": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "profile_url": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    },
+                    "error": {
+                      "type": "string"
                     }
                   }
                 }

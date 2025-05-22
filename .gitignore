@@ -48,7 +48,10 @@ __blobstorage__
 __queuestorage__
 __azurite_db*__.json
 
-# Ignore browser state json
-browser_state.json
 
 extensions.json
+
+# Cache files
+*-Connections.json
+*-Mutual-Connections.json
+browser_state.json

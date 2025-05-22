@@ -174,21 +174,23 @@ async def search_and_process_connections(page, company, network_type):
     mypeople = await extract_people_from_page(page)
     processed_people = []
     
-    # For testing: only process the first person
-    if mypeople:
-        person = mypeople[0]
+    # Process all people found
+    for person in mypeople:
         person['connection_level'] = 1 if network_type == 'F' else 2
-        print(f"Name: {person['name']}")
+        print(f"\nProcessing: {person['name']}")
         print(f"Role: {person['role']}")
         print(f"Location: {person['location']}")
         print(f"Connection Level: {person['connection_level']}")
         
         # For 2nd-degree connections, fetch mutual connections
         if network_type == 'S' and person['profile_url']:
+            print(f"Fetching mutual connections for {person['name']}...")
             person['mutual_connections'] = await get_mutual_connections_for_profile(page, person['profile_url'])
+            print(f"Found {len(person['mutual_connections'])} mutual connections")
         
         processed_people.append(person)
     
+    print(f"\nProcessed {len(processed_people)} {network_type}-degree connections")
     return processed_people
 
 async def initialize_browser():

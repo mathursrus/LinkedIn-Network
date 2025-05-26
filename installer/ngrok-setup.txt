@@ -1,0 +1,9 @@
+# ngrok Configuration (Optional)
+# You can create an ngrok account for additional features:
+# 1. Sign up at https://ngrok.com
+# 2. Get your auth token
+# 3. Run: ngrok config add-authtoken YOUR_TOKEN
+# 4. This enables custom domains and longer session times
+
+# Basic usage (no account needed):
+# ngrok http 8001

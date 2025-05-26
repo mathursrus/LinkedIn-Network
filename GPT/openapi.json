@@ -2,6 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "LinkedIn Network Builder",
+    "description": "This API allows you to browse the public LinkedIn network of a company and find mutual connections between a person and a company.",
     "version": "1.0.0"
   },
   "servers": [

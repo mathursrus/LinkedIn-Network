@@ -1,136 +1,147 @@
-# Personal Network Agent
+# LinkedIn Network Builder
 
-A local API server that helps you explore your LinkedIn network and discover people at any company you specify. This project is designed for **personal use** and can be integrated with GPTs using the provided OpenAPI spec.
-
----
-
-## 🚦 Requirements
-
-- **Python 3.11.x** (not 3.12+; Playwright is not fully compatible with 3.12)
-- **pip** (Python package manager)
-- **Google Chrome** (or Chromium-based browser)
-- **LinkedIn account** (you will log in interactively)
-- **Windows, Mac, or Linux** (tested on Windows 10+)
+A simple desktop application that helps you explore your LinkedIn network and discover people at any company. Find mutual connections to get warm introductions when reaching out to target companies.
 
 ---
 
-## 🛠️ Setup Instructions
+## 🚀 Quick Start (Recommended)
 
-### 1. **Install Python 3.11**
-- Download Python 3.11 from [python.org](https://www.python.org/downloads/release/python-3110/)
-- During installation, check **"Add Python to PATH"**
+### For End Users - One-Click Installation
 
-### 2. **Clone the Repository**
-```bash
-git clone <your-repo-url>
-cd <your-repo-directory>
-```
+1. **Navigate to** the installer folder
+2. **Find the** install.bat file
+3. **Right-click** on `install.bat` and select **"Run as Administrator"**
+4. **Navigate** to `C:\Users\[YourName]\LinkedIn-Network-Builder`
+5. **Double-click** `start-linkedin-network.bat`
+6. **Copy** the HTTPS URL that appears (for GPT integration)
 
-### 3. **Create and Activate a Virtual Environment**
-```bash
-# Windows
-python -m venv venv311
-venv311\Scripts\activate
-
-# Mac/Linux
-python3.11 -m venv venv311
-source venv311/bin/activate
-```
-
-### 4. **Install Dependencies**
-```bash
-pip install -r requirements.txt
-```
-
-### 5. **Install Playwright Browsers**
-```bash
-python -m playwright install
-```
-
-### 6. **Test Playwright Installation (Optional)**
-```bash
-python test_playwright.py
-```
-This should open and close a browser window without errors.
+That's it! The application will:
+- ✅ Install all required browsers automatically
+- ✅ Start the API server on your computer
+- ✅ Create a secure tunnel for GPT access
+- ✅ Save your LinkedIn login for future use
 
 ---
 
-## 🚀 Running the Local API Server
+## 🔧 How It Works
 
-### 1. **Start the Server**
-```bash
-python run.py
-```
-_or, if you want to use Uvicorn directly:_
-```bash
-uvicorn main:app --reload --port 8001
-```
+### First Time Setup
+1. When you run the application, a browser window will open
+2. **Log in to LinkedIn manually** (handle any security checks)
+3. Your session will be saved securely for future use
+4. The application runs locally on your computer - your data stays private
 
-### 2. **Log In to LinkedIn**
-- On first use, a browser window will open.
-- Log in to LinkedIn **manually** (handle MFA/CAPTCHA as needed).
-- The session will be saved and reused for future requests.
-
----
-
-## 🧪 Testing the API
-You can test the API with:
-```bash
-curl "http://127.0.0.1:8001/browse_company_people?company=Microsoft"
-```
-- Replace `Microsoft` with any company name.
-- The response will be a JSON list of people, their roles, locations, and connection levels.
+### Using the Application
+- **Browse Company People**: Find 1st and 2nd degree connections at any company
+- **Discover Mutual Connections**: See who can introduce you to 2nd degree connections
+- **GPT Integration**: Use the HTTPS URL with ChatGPT for conversational networking
 
 ---
 
 ## 🤖 GPT Integration
 
-### 1. **OpenAPI Spec**
-- Download ngrok (or cloudflare)
-- Run ngrok http 8001
-- Take note of the https endpoint that ngrok returns
+### Setting Up Your Custom GPT
+1. **Copy the HTTPS URL** from the application startup
+2. **Create a new GPT** in ChatGPT
+3. **Add the instruction in GPT/instructions.txt**
+4. **Configure the API** using the GPT/openapi.json updated with your HTTPS URL in the servers segment
+5. **Save and test** your GPT
 
-### 2. **Instructions for GPT Users**
-- Use the `GPT/instructions.txt` and `GPT/openapi.json` to create a custom GPT that calls your local API.
-- Update the servers segment of the spec with the endpoint that ngrok returned
-- Save the GPT and use it for your networking needs.
-
----
-
-## 📝 Notes & Troubleshooting
-- **Python Version:**  
-  You **must** use Python 3.11.x. Playwright is not fully compatible with 3.12+.
-- **Virtual Environment:**  
-  Always activate your venv before running the server.
-- **Playwright Browsers:**  
-  If you see errors about missing browsers, rerun `python -m playwright install`.
-- **Session Expiry:**  
-  If you are prompted to log in again, simply complete the login in the browser window.
-- **Security:**  
-  This project is for **personal/local use only**. Do **not** expose your server to the public internet without proper authentication and HTTPS.
+### Example GPT Conversations
+- "Find people at Anthropic and show me who I can get introductions from"
+- "Who do I know at Microsoft that could introduce me to their AI team?"
+- "Show me my connections at startups in San Francisco"
 
 ---
 
-## 📂 Project Structure
-```
-.
-├── main.py                # FastAPI app with LinkedIn logic
-├── run.py                 # Script to launch the server with hot reload
-├── requirements.txt       # Python dependencies
-├── test_playwright.py     # (Optional) Test script for Playwright install
-├── GPT/
-│   ├── instructions.txt   # Instructions for your GPT
-│   └── openapi.json       # OpenAPI spec for the API
-└── ... (other files)
+## 🛠️ Developer Setup (Advanced)
+
+### If You Want to Modify the Code
+
+**Requirements:**
+- Python 3.11.x (not 3.12+)
+- Git
+
+**Setup:**
+```bash
+git clone <repository-url>
+cd linkedin-network-builder
+python -m venv venv
+venv\Scripts\activate  # Windows
+pip install -r requirements.txt
+python -m playwright install
 ```
 
+**Running:**
+```bash
+python main.py
+```
+
+**Building Installer:**
+```bash
+python build_installer.py
+```
+
 ---
 
-## 🛡️ Disclaimer
-- This project is for educational and personal use only.
-- Using automation on LinkedIn may violate their Terms of Service. Use responsibly and at your own risk.
+## 📋 Features
+
+- **🔍 Company Search**: Find all your connections at any company
+- **🤝 Mutual Connections**: Discover who can introduce you to 2nd degree connections  
+- **💾 Smart Caching**: Results are cached to avoid repeated LinkedIn requests
+- **🔒 Privacy First**: Everything runs locally on your computer
+- **🚀 GPT Ready**: Built-in API for ChatGPT integration
+- **⚡ One-Click Install**: No technical setup required
 
 ---
 
-**Enjoy your Personal Network Agent!**
-If you have questions or need help, open an issue or ask in the repo. 
+## 🔧 Troubleshooting
+
+### Common Issues
+
+**"Browser not found" error:**
+- Run the installer again as Administrator
+- The installer automatically downloads required browsers
+
+**"LinkedIn login required":**
+- This is normal on first use or after session expires
+- Simply log in manually in the browser window that opens
+
+**GPT can't connect:**
+- Make sure `start-linkedin-network.bat` is running
+- Copy the HTTPS URL exactly as shown
+- Check that your firewall isn't blocking the application
+
+**Application won't start:**
+- Right-click `start-linkedin-network.bat` and "Run as Administrator"
+- Make sure you're running from the installed location: `C:\Users\[YourName]\LinkedIn-Network-Builder`
+
+---
+
+## 🛡️ Privacy & Security
+
+- **Local Only**: All processing happens on your computer
+- **No Data Collection**: Your LinkedIn data never leaves your machine
+- **Secure Sessions**: Login credentials are stored locally and encrypted
+- **HTTPS Tunnel**: GPT communication is encrypted end-to-end
+
+---
+
+## 📞 Support
+
+Having issues? Here's how to get help:
+
+1. **Check the troubleshooting section** above
+2. **Restart the application** (close and run `start-linkedin-network.bat` again)
+3. **Run as Administrator** if you're having permission issues
+4. **Contact support** with the error message you're seeing
+
+---
+
+## ⚖️ Legal Notice
+
+This tool is for personal networking use only. Please respect LinkedIn's Terms of Service and use responsibly. The application automates browsing your existing network connections - it does not scrape public data or violate privacy settings.
+
+---
+
+**Ready to supercharge your networking? Download the installer and get started in minutes!** 

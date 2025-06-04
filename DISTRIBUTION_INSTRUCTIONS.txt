@@ -1,0 +1,65 @@
+
+🚀 LINKEDIN NETWORK BUILDER - DISTRIBUTION PACKAGE
+
+📦 File: LinkedIn-Network-Builder-v1.0.zip
+📏 Size: 50.4 MB
+
+WHAT TO SEND TO USERS:
+✅ Send them this ZIP file: LinkedIn-Network-Builder-v1.0.zip
+✅ Tell them to extract it to any folder
+✅ Tell them to run linkedin-network-builder.exe
+
+USER INSTRUCTIONS:
+1. Extract LinkedIn-Network-Builder-v1.0.zip to any folder
+2. Open Command Prompt/PowerShell in that folder
+3. Run: linkedin-network-builder.exe
+4. Follow the prompts for ChatGPT integration
+5. Start networking!
+
+WHAT'S INCLUDED:
+- Complete standalone application (no Python needed)
+- Automatic browser installation
+- Automatic ChatGPT GPT setup
+- Secure ngrok tunneling
+- Professional GPT templates
+- Complete documentation
+
+SYSTEM REQUIREMENTS:
+- Windows 10/11 (64-bit)
+- Internet connection
+- 500MB free disk space
+- Administrator privileges (for first-time browser installation)
+
+TROUBLESHOOTING FOR FRESH MACHINES:
+
+🔧 If the executable won't run:
+1. Install Microsoft Visual C++ Redistributable:
+   - Download from: https://aka.ms/vs/17/release/vc_redist.x64.exe
+   - This is required for PyInstaller executables
+
+🛡️ If Windows Defender blocks it:
+1. Right-click the executable → Properties → Unblock
+2. Or add the folder to Windows Defender exclusions
+3. Or run as Administrator
+
+🌐 If browser installation fails:
+1. Run as Administrator: linkedin-network-builder.exe --install-browsers
+2. Ensure internet connection is stable
+3. Check Windows Firewall isn't blocking downloads
+
+🔒 If ngrok fails to start:
+1. Check if corporate firewall blocks ngrok
+2. Try running as Administrator
+3. Some corporate networks block tunnel services
+
+💡 Alternative for corporate environments:
+- The application can run locally without ngrok
+- Access API directly at http://localhost:8001/docs
+- Manual GPT setup may be required
+
+SUPPORT:
+- Check console output for detailed error messages
+- Most issues are resolved by running as Administrator
+- Ensure antivirus isn't blocking the application
+
+The application is completely self-contained and requires no additional software installation beyond the optional Visual C++ Redistributable!

@@ -2,7 +2,15 @@ import sys
 import asyncio
 import json
 import os
+import subprocess
+import platform
+import warnings
 from datetime import datetime
+
+# Suppress harmless Windows asyncio cleanup warnings
+if platform.system() == "Windows":
+    warnings.filterwarnings("ignore", category=ResourceWarning, message=".*unclosed transport.*")
+    warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*Event loop is closed.*")
 
 # Check for command line arguments FIRST, before any other imports
 if len(sys.argv) > 1 and sys.argv[1] == "--install-browsers":
@@ -32,18 +40,16 @@ if len(sys.argv) > 1 and sys.argv[1] == "--install-browsers":
             if result.returncode == 0:
                 print("✅ Browsers installed successfully!")
                 print(f"Browsers installed to: {persistent_browser_path}")
-                return True
             else:
-                print(f"❌ Browser installation failed: {result.stderr}")
-                return False
+                print("❌ Browser installation failed:")
+                print(result.stderr)
                 
         except Exception as e:
-            print(f"❌ Error installing browsers: {e}")
-            return False
+            print(f"Error installing browsers: {e}")
     
-    # Run the installation and exit
-    result = asyncio.run(install_browsers())
-    sys.exit(0 if result else 1)
+    # Run the installation
+    asyncio.run(install_browsers())
+    sys.exit(0)
 
 # Fix for PyInstaller + Playwright subprocess issues
 if sys.platform == 'win32':
@@ -58,6 +64,147 @@ from playwright.async_api import async_playwright
 import uvicorn
 
 app = FastAPI()
+
+# Ngrok and GPT Setup Functions
+def start_ngrok_tunnel(port=8001):
+    """Start ngrok tunnel and return the public URL"""
+    try:
+        print("Starting ngrok tunnel...")
+        
+        # Check if ngrok.exe exists in current directory
+        ngrok_path = "ngrok.exe"
+        if not os.path.exists(ngrok_path):
+            print("❌ ngrok.exe not found in current directory")
+            return None
+            
+        # Start ngrok tunnel
+        process = subprocess.Popen([
+            ngrok_path, "http", str(port), "--log=stdout"
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        # Wait for tunnel to be established and get URL
+        import time
+        time.sleep(3)  # Give ngrok time to start
+        
+        # Get tunnel info
+        try:
+            import requests
+            response = requests.get("http://127.0.0.1:4040/api/tunnels")
+            tunnels = response.json()["tunnels"]
+            
+            if tunnels:
+                public_url = tunnels[0]["public_url"]
+                print(f"✅ Ngrok tunnel started: {public_url}")
+                return public_url
+            else:
+                print("❌ No tunnels found")
+                return None
+                
+        except Exception as e:
+            print(f"❌ Failed to get tunnel info: {e}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Failed to start ngrok: {e}")
+        return None
+
+async def setup_gpt_automatically(ngrok_url):
+    """Setup GPT automatically with the ngrok URL"""
+    try:
+        print("\n🤖 Setting up ChatGPT integration...")
+        print("This will open a browser window for you to login to ChatGPT.")
+        
+        # Import GPT manager
+        from gpt_manager import setup_gpt_with_ngrok
+        
+        result = await setup_gpt_with_ngrok(ngrok_url)
+        
+        if result:
+            print("✅ ChatGPT GPT setup completed successfully!")
+            print("You can now use your custom GPT in ChatGPT!")
+            return True
+        else:
+            print("❌ GPT setup failed")
+            return False
+            
+    except Exception as e:
+        print(f"❌ GPT setup error: {e}")
+        return False
+
+def comprehensive_startup():
+    """Comprehensive startup that handles ngrok and GPT setup"""
+    print("🚀 LinkedIn Network Builder - Complete Setup")
+    print("=" * 60)
+    
+    # Start the FastAPI server in background
+    import threading
+    import time
+    
+    def run_server():
+        uvicorn.run(app, host="127.0.0.1", port=8001, log_level="info")
+    
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+    
+    # Give server time to start
+    print("Starting FastAPI server...")
+    time.sleep(3)
+    
+    # Start ngrok tunnel
+    ngrok_url = start_ngrok_tunnel(8001)
+    
+    if ngrok_url:
+        print(f"\n📡 Your LinkedIn Network Builder is now accessible at:")
+        print(f"   {ngrok_url}")
+        print(f"   API docs: {ngrok_url}/docs")
+        
+        # Ask user if they want GPT setup
+        print("\n🤖 Would you like to set up ChatGPT integration? (y/n): ", end="")
+        try:
+            choice = input().lower().strip()
+            if choice in ['y', 'yes']:
+                # Run GPT setup
+                if platform.system() == "Windows":
+                    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                try:
+                    success = loop.run_until_complete(setup_gpt_automatically(ngrok_url))
+                    if success:
+                        print("\n🎉 Complete setup finished!")
+                        print("Your LinkedIn Network Builder is ready to use!")
+                    else:
+                        print("\n⚠️  Server is running but GPT setup failed.")
+                        print("You can still use the API directly.")
+                finally:
+                    loop.close()
+            else:
+                print("\n✅ Server is running without GPT integration.")
+                print("You can use the API directly or set up GPT later.")
+                
+        except KeyboardInterrupt:
+            print("\n\n⚠️  Setup interrupted by user.")
+            
+        print(f"\n📖 Your API is running at: {ngrok_url}")
+        print("Press Ctrl+C to stop the server")
+        
+        # Keep the main thread alive
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n👋 Shutting down...")
+            
+    else:
+        print("\n❌ Failed to start ngrok tunnel.")
+        print("Starting server in local mode only...")
+        print("Server available at: http://127.0.0.1:8001")
+        print("API documentation at: http://127.0.0.1:8001/docs")
+        
+        # Run server normally
+        uvicorn.run(app, host="127.0.0.1", port=8001)
 
 async def install_browsers():
     """Install Playwright browsers"""
@@ -184,19 +331,29 @@ async def extract_people_from_page(page):
                 
             # Extract person information using evaluate
             result = await block.evaluate("""el => {
-                // Get name using the specific class within the name block
-                const nameBlock = el.querySelector('.kmApjJVnFerynwITxTBSCqzqgoHwVfkiA.HHGiVqODTCkszDUDWwPGPJGUPfAeRpygAKwwLePrQ');
-                const nameEl = nameBlock ? nameBlock.querySelector('.sDWEFrcVubKuUVGggeBOYqLlgYgPbojOc') : null;
-                const name = nameEl ? nameEl.innerText.trim().split('\\n')[0] : 'Unknown';
+                // Look for .mb1 followed by span[aria-hidden="true"]
+                const mb1Block = el.querySelector('.mb1');
+                let name = 'Unknown';
+                let role = 'Unknown';
+                let location = 'Unknown';
                 
-                // Get role using the specific class
-                const roleEl = el.querySelector('.kFTZPhxHBbvnnRxiRPmTxafKGLUNSiaeInag');
-                const role = roleEl ? roleEl.innerText.trim() : 'Unknown';
-                
-                // Get location using the specific class
-                const locationEl = el.querySelector('.FlWUwyrEUZpkVCgzGTDwUHTLntfZNseavlY');
-                const location = locationEl ? locationEl.innerText.trim() : 'Unknown';
+                if (mb1Block) {
+                    const nameSpan = mb1Block.querySelector('span[aria-hidden="true"]');
+                    if (nameSpan && nameSpan.innerText && nameSpan.innerText.trim()) {
+                        name = nameSpan.innerText.trim();
+                    }
                     
+                    // Second child is role
+                    if (mb1Block.children[1]) {
+                        role = mb1Block.children[1].textContent.trim();
+                    }
+                    
+                    // Third child is location
+                    if (mb1Block.children[2]) {
+                        location = mb1Block.children[2].textContent.trim();
+                    }
+                }
+                
                 // Get profile URL
                 const profileLink = el.querySelector('a[href*="/in/"]');
                 const profileUrl = profileLink ? profileLink.href : null;
@@ -218,6 +375,7 @@ async def extract_people_from_page(page):
                 mypeople.append(result)
         
         return mypeople
+        
     except Exception as e:
         print(f"Error extracting people from page: {e}")
         return []
@@ -238,22 +396,57 @@ async def get_mutual_connections_for_profile(page, profile_url):
                 print("Could not find profile block")
                 return []
                 
-            # Find the mutual connections link within the profile block
-            mutual_connections_link = await profile_block.query_selector('a.sDWEFrcVubKuUVGggeBOYqLlgYgPbojOc')
-            print(f"Mutual connections link: {mutual_connections_link}")
+            # Strategy 1: Look for mutual connections using future-proof approach
+            # Find links that contain mutual connections text patterns
+            mutual_connections_link = await profile_block.evaluate("""el => {
+                // Strategy 1: Look for span with aria-hidden="true" that contains numbers (mutual connections count)
+                const spans = el.querySelectorAll('span[aria-hidden="true"]');
+                for (const span of spans) {
+                    const text = span.textContent.trim();
+                    // Look for patterns like "5", "10", etc. (mutual connections count)
+                    if (/^\\d+$/.test(text) && parseInt(text) > 0) {
+                        // Find the parent link
+                        let parent = span.parentElement;
+                        while (parent && parent.tagName !== 'A') {
+                            parent = parent.parentElement;
+                        }
+                        if (parent && parent.href && parent.href.includes('mutual')) {
+                            return parent.href;
+                        }
+                    }
+                }
+                
+                // Strategy 2: Look for links containing "mutual" in href
+                const links = el.querySelectorAll('a[href*="mutual"]');
+                for (const link of links) {
+                    if (link.href) {
+                        return link.href;
+                    }
+                }
+                
+                // Strategy 3: Look for text content containing "mutual" (case insensitive)
+                const allLinks = el.querySelectorAll('a');
+                for (const link of allLinks) {
+                    const text = link.textContent.toLowerCase();
+                    if (text.includes('mutual') && link.href) {
+                        return link.href;
+                    }
+                }
+                
+                return null;
+            }""")
+            
+            print(f"Mutual connections link found: {mutual_connections_link}")
             
             if mutual_connections_link:
-                # Get the href attribute
-                href = await mutual_connections_link.get_attribute('href')
-                if href:
-                    # Navigate to the mutual connections page
-                    await page.goto(href)
-                    await page.wait_for_timeout(2000)  # Wait for page to load
-                    
-                    # Extract mutual connections using the common extraction function
-                    mutual_connections = await extract_people_from_page(page)
-                    print("mutual_connections", mutual_connections)
-                    return mutual_connections
+                # Navigate to the mutual connections page
+                await page.goto(mutual_connections_link)
+                await page.wait_for_timeout(2000)  # Wait for page to load
+                
+                # Extract mutual connections using the common extraction function
+                mutual_connections = await extract_people_from_page(page)
+                print("mutual_connections", mutual_connections)
+                return mutual_connections
             else:
                 print("Could not find mutual connections link")
                 return []
@@ -588,18 +781,107 @@ async def process_mutual_connections(person: str, company: str, cache_filename: 
             await p.stop()
         raise e
 
+@app.get("/find_people_by_role")
+async def find_people_by_role(role: str, company: str, background_tasks: BackgroundTasks):
+    """Find people with a specific role at a company"""
+    cache_filename = get_cache_filename(company, f"role_{role.replace(' ', '_')}")
+    cached_data = load_from_cache(cache_filename)
+    
+    # Check cached results
+    result = handle_cached_results(cached_data, company, f"role: {role}")
+    if result:
+        return result
+    
+    # If no cache exists or previous attempt failed, mark as processing and start background processing
+    processing_data = {
+        "role": role,
+        "company": company,
+        "status": "processing",
+        "timestamp": datetime.now().isoformat(),
+        "message": f"Processing started for {role} at {company}. Please try again in a few minutes."
+    }
+    save_to_cache(cache_filename, processing_data)
+    background_tasks.add_task(process_role_search, role, company, cache_filename)
+    return {
+        "message": f"Processing in progress for {role} at {company}. Please try again in a few minutes.",
+        "status": "processing"
+    }
+
+async def process_role_search(role: str, company: str, cache_filename: str):
+    """Background task to process role-based search"""
+    print(f"Starting role search for {role} at {company}")
+    browser = None
+    p = None
+    try:
+        browser, page, p = await initialize_browser()
+        if not browser or not page:
+            error_result = {
+                "role": role,
+                "company": company,
+                "status": "error",
+                "timestamp": datetime.now().isoformat(),
+                "error": "Failed to initialize browser or login to LinkedIn"
+            }
+            save_to_cache(cache_filename, error_result)
+            return error_result
+        
+        try:
+            # Search for people with specific role at company
+            # URL encode the role for the search
+            import urllib.parse
+            encoded_role = urllib.parse.quote(role)
+            search_url = f"https://www.linkedin.com/search/results/people/?keywords={encoded_role}&origin=GLOBAL_SEARCH_HEADER&company={company}"
+            print(f"\nNavigating to role search: {search_url}")
+            await page.goto(search_url)
+            
+            # Extract people using the common extraction function
+            people = await extract_people_from_page(page)
+            
+            print("\nClosing browser...")
+            await browser.close()
+            await p.stop()
+            print("Done!")
+            print(f"Total people found with role '{role}': {len(people)}")
+            
+            # Save results to cache
+            result = {
+                "role": role,
+                "company": company,
+                "status": "complete",
+                "timestamp": datetime.now().isoformat(),
+                "people": people
+            }
+            save_to_cache(cache_filename, result)
+            return result
+            
+        finally:
+            if browser:
+                await browser.close()
+            if p:
+                await p.stop()
+            
+    except Exception as e:
+        # If there's an error, save error state to cache
+        error_result = {
+            "role": role,
+            "company": company,
+            "status": "error",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }
+        save_to_cache(cache_filename, error_result)
+        if browser:
+            await browser.close()
+        if p:
+            await p.stop()
+        raise e
+
 if __name__ == "__main__":
-    # Normal server startup (browser installation check is handled at the top)
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+    # Use comprehensive startup that includes ngrok and GPT setup
+    comprehensive_startup()
 
 def main():
     """Entry point for the console script"""
-    import uvicorn
-    
-    # Browser installation check is handled at the top of the file
-    print("Starting LinkedIn Network Builder...")
-    print("Server will be available at: http://127.0.0.1:8001")
-    print("API documentation at: http://127.0.0.1:8001/docs")
-    print("Press Ctrl+C to stop the server")
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+    # Use comprehensive startup that includes ngrok and GPT setup
+    comprehensive_startup()
 

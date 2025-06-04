@@ -17,7 +17,7 @@ Transform your LinkedIn networking with a powerful tool that:
 
 ### Quick Start (30 seconds)
 
-1. **Download** the `linkedin-network-builder.exe` from the installer folder
+1. **Download and extract** the `linkedin-network-builder-v1.0.zip` from the main folder
 2. **Run** the executable
 3. **Choose 'y'** when asked about ChatGPT integration
 4. **Login** to ChatGPT when the browser opens

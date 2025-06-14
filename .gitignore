@@ -36,9 +36,13 @@ installer/
 env/
 venv/
 venv311/
+venv_new/
 ENV/
 env.bak/
 venv.bak/
+
+cache/
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

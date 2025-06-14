@@ -1,92 +1,108 @@
-# 🚀 LinkedIn Network Builder
+# 🤖 LinkedIn Network Assistant
 
-**The complete all-in-one solution for LinkedIn networking with automatic ChatGPT integration**
+An intelligent, chat-based application for exploring your LinkedIn network, powered by Python, FastAPI, and the OpenAI Assistants API.
 
-## ✨ What This Does
+This project provides a web interface where you can have a conversation with an AI assistant to perform complex searches on your LinkedIn network. It uses browser automation (Playwright) on the backend to find connections, analyze relationships, and return the data to the assistant for a natural language response.
 
-Transform your LinkedIn networking with a powerful tool that:
-- **Finds connections** at any company (1st, 2nd, and 3rd degree)
-- **Discovers mutual connections** for warm introductions
-- **Searches by role** to find specific people you need to meet
-- **Automatically sets up ChatGPT** with a custom GPT for easy access
-- **Creates secure tunnels** so ChatGPT can access your data
+## ✨ Features
 
-## 🎯 One-Click Setup
+- **Conversational Interface**: Interact with your LinkedIn network using natural language.
+- **Find Company Connections**: Ask for people who work at a specific company (e.g., "Who do I know at Google?").
+- **Search by Role**: Find people with a specific job title at a company (e.g., "Find me recruiters at Apple").
+- **Discover Mutual Connections**: See who you and a target contact both know.
+- **Advanced Connection Search**: Find out if a person in your network knows anyone at a target company (e.g., "Does Jeff Weiner know anyone at Microsoft?").
+- **Asynchronous Job Processing**: Long-running searches (like scraping LinkedIn) are handled in the background, so the UI is never blocked.
+- **Real-time Status Updates**: Visual icons show you the real-time status of your requests (In Progress, Complete, or Failed).
+- **Resilient Caching**: Results are cached on disk, so you never have to run the same search twice.
+- **Secure Configuration**: Your OpenAI API key and Assistant ID are managed securely on the server and are never exposed to the client directly.
 
-**Everything is automated!** Just run one executable and you're ready to go.
+## ⚙️ How It Works
 
-### Quick Start (30 seconds)
+This application consists of two main parts:
 
-1. **Download** the `linkedin-network-builder.exe` from the installer folder
-2. **Run** the executable
-3. **Choose 'y'** when asked about ChatGPT integration
-4. **Login** to ChatGPT when the browser opens
-5. **Done!** Your custom GPT is ready to use
+1.  **Backend (Python/FastAPI)**: A server that uses Playwright to perform LinkedIn automation. It manages a queue for browser sessions, handles caching, and serves the frontend. It also securely manages the OpenAI Assistant configuration.
+2.  **Frontend (HTML/JS)**: A clean, chat-based web interface that interacts with the OpenAI Assistants API. The assistant uses the backend server as a "tool" to get live data from LinkedIn.
 
-## 🛠️ What's Included
+## 📋 Requirements
 
-- **Single Executable**: Everything bundled into one file
-- **Automatic ngrok Tunnel**: Secure public access for ChatGPT
-- **GPT Auto-Setup**: Creates "Sid's LinkedIn Network Builder" GPT
-- **Professional Templates**: Complete instructions and API schema
-- **Error Recovery**: Handles crashes and restarts automatically
-- **Clean Interface**: Simple prompts, no technical complexity
+- Python 3.8+ and `pip`
+- A LinkedIn account
+- An OpenAI API Key
 
-## 📋 API Endpoints
+## 🚀 Getting Started
 
-Your LinkedIn Network Builder provides these powerful endpoints:
+Follow these steps to get the application running locally.
 
-### 🏢 Browse Company People
-```
-GET /browse_company_people?company=Adobe
-```
-Returns all your connections at a company with their connection levels.
+### 1. Clone the Repository
 
-### 🤝 Find Mutual Connections
-```
-GET /find_mutual_connections?person=John Smith&company=Adobe
-```
-Finds mutual connections between you and a specific person at a company.
-
-### 👔 Find People by Role
-```
-GET /find_people_by_role?role=Software Engineer&company=Adobe
-```
-Searches for people with specific roles at target companies.
-
-## 🎮 Usage Examples
-
-### Via ChatGPT (Recommended)
-Once set up, just chat with your GPT:
-- *"Who are my connections at Microsoft?"*
-- *"Find mutual connections with Sarah Johnson at Google"*
-- *"Who should I connect with at Apple who's a Product Manager?"*
-
-### Via API (Advanced)
-Access your tunnel URL directly:
 ```bash
-curl "https://your-ngrok-url.app/browse_company_people?company=Adobe"
+git clone <your-repository-url>
+cd <repository-directory>
 ```
 
-## 🔧 Technical Features
+### 2. Set Up a Virtual Environment
 
-- **Background Processing**: Large searches run in background with caching
-- **Smart Caching**: Results saved to avoid re-scraping
-- **Browser Automation**: Uses Playwright for reliable LinkedIn scraping
-- **Crash Recovery**: Automatically restarts browser if it crashes
-- **Windows Optimized**: Handles Windows-specific asyncio issues
+It's highly recommended to use a virtual environment to manage dependencies.
 
-## 📁 File Structure
+```bash
+# Windows
+python -m venv venv_new
+.\venv_new\Scripts\activate
+
+# macOS/Linux
+python3 -m venv venv_new
+source venv_new/bin/activate
+```
+
+### 3. Install Dependencies
+
+Install all the required Python packages from `requirements.txt`.
+
+```bash
+pip install -r requirements.txt
+```
+
+This will also install Playwright's browser dependencies. If it fails, you can run `playwright install` manually.
+
+### 4. Configure Your API Key
+
+Create a file named `.env` in the root of the project directory. This file will hold your secret API key.
+
+Add your OpenAI API key to the `.env` file like this:
 
 ```
-linkedin-network-builder.exe    # Main application (all-in-one)
-gpt_manager.py                  # GPT automation (bundled)
-ngrok.exe                       # Tunnel software (bundled)
-GPT/
-  ├── instructions.txt          # GPT instructions template
-  └── openapi.json             # API schema template
-README.txt                      # Quick start guide
+OPENAI_API_KEY="sk-YourSecretKeyHere"
 ```
+
+The server will automatically load this key when it starts. The `.gitignore` file is already configured to prevent this file from being committed.
+
+### 5. Run the Server
+
+Launch the FastAPI server using Uvicorn.
+
+```bash
+uvicorn linkedin_network_builder:app --reload
+```
+
+The `--reload` flag means the server will automatically restart if you make any changes to the code.
+
+### 6. Open the Client
+
+Open the `client.html` file in your web browser. The application will initialize, fetch the necessary configuration from the server, and you'll be ready to start chatting.
+
+## 💡 Example Queries
+
+Once the application is running, here are some things you can ask the assistant:
+
+- "Find people who work at OpenAI"
+- "Who works as a recruiter at Google?"
+- "Does Jeff Weiner know anyone at Anthropic?"
+- "Find mutual connections I have with Satya Nadella"
+- "Who are the most influential people at Microsoft in the AI division?"
+- "Help me write a message to a recruiter at Apple."
+
+## 🚀 LinkedIn Network Builder
+
 
 ## 🚨 Troubleshooting
 
@@ -97,26 +113,16 @@ README.txt                      # Quick start guide
 - Ensure internet connection
 - Try: `linkedin-network-builder.exe --install-browsers`
 
-**"GPT setup failed"**
-- Check internet connection
-- Ensure you can access ChatGPT
-- Try manual setup with the ngrok URL
 
 **"LinkedIn scraping not working"**
 - LinkedIn may have changed their layout
 - The app uses semantic selectors that adapt to changes
 - Contact support if issues persist
 
-### Manual GPT Setup
-If automatic setup fails:
-1. Note the ngrok HTTPS URL from console
-2. Go to https://chatgpt.com/gpts/editor
-3. Create new GPT with the URL as an Action
 
 ## 🔒 Privacy & Security
 
 - **Local Processing**: All data stays on your machine
-- **Secure Tunnels**: ngrok provides HTTPS encryption
 - **No Data Storage**: Results cached locally only
 - **LinkedIn Login**: Uses your existing LinkedIn session
 
@@ -128,37 +134,17 @@ If automatic setup fails:
 - **Job Seekers**: Find connections at companies you're targeting
 - **Entrepreneurs**: Research potential partners and investors
 
-## 🚀 Advanced Usage
 
-### Building from Source
-```bash
-git clone <repository>
-cd linkedin-network-builder
-python build_installer.py
-```
 
-### Custom Configuration
-- Edit `GPT/instructions.txt` for custom GPT behavior
-- Modify `GPT/openapi.json` for additional endpoints
-- Rebuild with `python build_installer.py`
+
 
 ## 📞 Support
 
 - **Console Output**: Check detailed status messages
 - **Error Recovery**: App automatically handles most issues
 - **Restart**: Close and reopen if unresponsive
-- **Manual Mode**: Use API directly if GPT setup fails
-
-## 🎉 Success Stories
-
-*"Found 15 mutual connections at my target company in 30 seconds!"*
-
-*"The ChatGPT integration makes networking research effortless."*
-
-*"Finally, a tool that actually works with LinkedIn's current layout."*
 
 ---
 
-**Ready to supercharge your LinkedIn networking?** 
 
-Download `linkedin-network-builder.exe` and get started in under a minute! 
+**Made with ❤️ by [Sid Mathur](https://github.com/mathursrus)** 

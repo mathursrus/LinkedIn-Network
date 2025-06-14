@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Network Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f7f7f8;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #newChatButton {
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #newChatButton:hover {
+            background: #0d8f6b;
+        }
+        
+        .config-toggle {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.2s;
+        }
+
+        .config-toggle:hover {
+            color: #333;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #666;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ccc; /* Default to grey */
+        }
+
+        .status-dot.ready {
+             background: #2ecc71; /* Green */
+        }
+
+        .status-dot.processing {
+            background: #ff9500;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.error {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 0 1rem;
+            overflow: hidden; /* Prevent chat container from causing body scroll */
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .message {
+            display: flex;
+            gap: 1rem;
+            max-width: 100%;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+            position: relative; /* Set as positioning context */
+            padding-left: 40px; /* Make space for the icon */
+        }
+        
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+            background: #10a37f;
+            color: white;
+        }
+
+        .message.user .message-avatar {
+            background: #10a37f;
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #ab68ff;
+            color: white;
+        }
+
+        .message-content {
+            background: white;
+            border-radius: 1rem;
+            padding: 1rem 1.25rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            max-width: 70%;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: #10a37f;
+            color: white;
+        }
+        
+        .async-indicator {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+
+        .async-indicator svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .async-indicator.processing svg {
+            animation: spin 1.5s linear infinite;
+        }
+        
+        .async-indicator.complete svg {
+            color: #2ecc71; /* Green */
+        }
+        
+        .async-indicator.error svg {
+            color: #e74c3c; /* Red */
+        }
+        
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 1rem 1.25rem;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #9ca3af;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .input-container {
+            padding: 1rem 0 2rem;
+            background: #f7f7f8;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 0.75rem;
+            background: white;
+            border-radius: 1.5rem;
+            padding: 0.75rem 1rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e5e5;
+        }
+        
+        .input-wrapper:focus-within {
+            border-color: #10a37f;
+            box-shadow: 0 2px 8px rgba(16, 163, 127, 0.2);
+        }
+
+        #messageInput {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 1rem;
+            background: transparent;
+            resize: none;
+            max-height: 120px;
+            min-height: 24px;
+            line-height: 1.5;
+        }
+
+        #sendButton {
+            background: #10a37f;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            flex-shrink: 0;
+        }
+
+        #sendButton:hover:not(:disabled) {
+            background: #0d8f6b;
+        }
+        
+        #sendButton:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+        }
+
+        .config-panel {
+            position: fixed;
+            top: 0;
+            right: -350px; /* Start off-screen */
+            width: 320px;
+            height: 100%;
+            background: white;
+            box-shadow: -2px 0 15px rgba(0,0,0,0.1);
+            padding: 2rem;
+            transition: right 0.3s ease-in-out;
+            z-index: 1000;
+        }
+        
+        .config-panel.visible {
+            right: 0;
+        }
+
+        .config-panel h2 {
+            margin-bottom: 1.5rem;
+        }
+
+        .config-field {
+            margin-bottom: 1rem;
+        }
+        
+        .config-field label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .config-field input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 0.375rem;
+            font-size: 1rem;
+        }
+        
+        .json-display {
+            background-color: #eef2f5;
+            color: #333;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            white-space: pre-wrap;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            border: 1px solid #d1d5db;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>LinkedIn Network Assistant</h1>
+        <div class="header-controls">
+            <button id="newChatButton" onclick="startNewChat()">+ New Chat</button>
+            <button class="config-toggle" onclick="toggleConfig()" title="Settings">⚙️</button>
+        </div>
+    </div>
+
+    <div id="configPanel" class="config-panel">
+        <h2>Configuration</h2>
+        <div class="status-indicator" id="statusIndicator">
+            <span id="statusDot" class="status-dot"></span>
+            <span id="statusText"></span>
+        </div>
+        <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #eee;">
+        <div class="config-field">
+            <label for="apiKey">OpenAI API Key:</label>
+            <input type="password" id="apiKey" placeholder="sk-...">
+        </div>
+        <div class="config-field">
+            <label for="assistantId">Assistant ID (optional):</label>
+            <input type="text" id="assistantId" placeholder="asst_...">
+        </div>
+        <button onclick="saveConfig()" style="background: #10a37f; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer; width: 100%; margin-top: 1rem;">Save</button>
+    </div>
+
+    <div class="chat-container">
+        <div id="messages" class="messages-container">
+             <div class="message assistant">
+                <div class="message-avatar">AI</div>
+                <div class="message-content">
+                    Hello! I'm your LinkedIn Network Assistant. I can help you find connections, research companies, and craft outreach messages.
+                    <br><br>
+                    Here are some things you can ask me:
+                    <ul style="margin-top: 0.75rem; padding-left: 1.25rem; line-height: 1.6;">
+                        <li>"Who can help me connect with someone at OpenAI?"</li>
+                        <li>"Find me exec recruiters at Google."</li>
+                        <li>"Does Joe White know anyone at Anthropic?"</li>
+                        <li>"Find mutual connections I have with Satya Nadella."</li>
+                        <li>"Help me write a message to Joe White to introduce me with his connection Jane Brown."</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <textarea id="messageInput" placeholder="Message LinkedIn Assistant..." rows="1" onkeydown="handleKeyDown(event)" oninput="adjustTextareaHeight(this)"></textarea>
+                <button id="sendButton" onclick="sendMessage()" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="client.js"></script>
+</body>
+</html> 

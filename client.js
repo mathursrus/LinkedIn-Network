@@ -2,8 +2,7 @@
 class LinkedInAssistant {
     constructor() {
         console.log("LinkedInAssistant constructor called");
-        this.apiKey = localStorage.getItem('openai_api_key') || '';
-        this.assistantId = localStorage.getItem('assistant_id') || '';
+        this.initializeAssistant();
         this.threadId = localStorage.getItem('thread_id') || '';
         this.asyncRequests = new Map();
         this.browser = null;
@@ -12,14 +11,6 @@ class LinkedInAssistant {
         this.initializeUI();
         this.loadConfig();
         
-        // Initialize assistant if we have API key
-        if (this.apiKey) {
-            console.log("API key found in localStorage. Initializing assistant.");
-            this.initializeAssistant();
-        } else {
-            console.warn("API key not found in localStorage.");
-        }
-
         // Try to fetch API key from server if not set in localStorage
         if (!this.apiKey) {
             console.log("Attempting to fetch API key from server.");

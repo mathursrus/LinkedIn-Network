@@ -78,13 +78,11 @@ The server will automatically load this key when it starts. The `.gitignore` fil
 
 ### 5. Run the Server
 
-Launch the FastAPI server using Uvicorn.
+Launch the FastAPI server .
 
 ```bash
-uvicorn linkedin_network_builder:app --reload
+python linkedin_network_builder.py
 ```
-
-The `--reload` flag means the server will automatically restart if you make any changes to the code.
 
 ### 6. Open the Client
 

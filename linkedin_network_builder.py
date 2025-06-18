@@ -8,7 +8,7 @@ import re
 import urllib.parse
 from dotenv import load_dotenv
 from openai import OpenAI
-from assistant_manager import get_assistant
+from assistant_manager import get_assistant, create_assistant
 
 # Load environment variables from .env file
 load_dotenv()
@@ -82,6 +82,8 @@ client = OpenAI(api_key=openai_api_key)
 
 # Get or create the assistant
 ASSISTANT_ID = get_assistant(client)
+if not ASSISTANT_ID:
+    ASSISTANT_ID = create_assistant(client)
 
 # Global store for job statuses is now REMOVED. We use the filesystem cache.
 # jobs = {}

@@ -14,7 +14,7 @@ This project provides a web interface where you can have a conversation with an 
 - **Asynchronous Job Processing**: Long-running searches (like scraping LinkedIn) are handled in the background, so the UI is never blocked.
 - **Real-time Status Updates**: Visual icons show you the real-time status of your requests (In Progress, Complete, or Failed).
 - **Resilient Caching**: Results are cached on disk, so you never have to run the same search twice.
-- **Secure Configuration**: Your OpenAI API key and Assistant ID are managed securely on the server and are never exposed to the client directly.
+- **Secure Configuration**: Everything is local, nothing is sent to any external servers.
 
 ## ⚙️ How It Works
 
@@ -40,31 +40,17 @@ git clone <your-repository-url>
 cd <repository-directory>
 ```
 
-### 2. Set Up a Virtual Environment
+### 2. Set Up Environment
 
-It's highly recommended to use a virtual environment to manage dependencies.
+You could do it the hardway by following all the steps in the setup_environment.bat yourself, or you could simply run that file.
 
 ```bash
 # Windows
-python -m venv venv_new
-.\venv_new\Scripts\activate
+.\setup_environment.bat
 
-# macOS/Linux
-python3 -m venv venv_new
-source venv_new/bin/activate
 ```
 
-### 3. Install Dependencies
-
-Install all the required Python packages from `requirements.txt`.
-
-```bash
-pip install -r requirements.txt
-```
-
-This will also install Playwright's browser dependencies. If it fails, you can run `playwright install` manually.
-
-### 4. Configure Your API Key
+### 3. Configure Your API Key
 
 Create a file named `.env` in the root of the project directory. This file will hold your secret API key.
 
@@ -76,7 +62,7 @@ OPENAI_API_KEY="sk-YourSecretKeyHere"
 
 The server will automatically load this key when it starts. The `.gitignore` file is already configured to prevent this file from being committed.
 
-### 5. Run the Server
+### 4. Run the Server
 
 Launch the FastAPI server .
 
@@ -84,7 +70,7 @@ Launch the FastAPI server .
 python linkedin_network_builder.py
 ```
 
-### 6. Open the Client
+### 5. Open the Client
 
 Open the `client.html` file in your web browser. The application will initialize, fetch the necessary configuration from the server, and you'll be ready to start chatting.
 
@@ -99,9 +85,6 @@ Once the application is running, here are some things you can ask the assistant:
 - "Who are the most influential people at Microsoft in the AI division?"
 - "Help me write a message to a recruiter at Apple."
 
-## 🚀 LinkedIn Network Builder
-
-
 ## 🚨 Troubleshooting
 
 ### Common Issues
@@ -109,10 +92,10 @@ Once the application is running, here are some things you can ask the assistant:
 **"Browser installation failed"**
 - Run as Administrator
 - Ensure internet connection
-- Try: `linkedin-network-builder.exe --install-browsers`
+- Try: `playwright install`
 
 
-**"LinkedIn scraping not working"**
+**"LinkedIn browsing not working"**
 - LinkedIn may have changed their layout
 - The app uses semantic selectors that adapt to changes
 - Contact support if issues persist

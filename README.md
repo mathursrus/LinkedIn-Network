@@ -16,6 +16,12 @@ This project provides a web interface where you can have a conversation with an 
 - **Resilient Caching**: Results are cached on disk, so you never have to run the same search twice.
 - **Secure Configuration**: Everything is local, nothing is sent to any external servers.
 
+## 📚 Technical Documentation
+
+Detailed technical documentation can be found in the `docs` directory:
+
+- [Graph Cache Design](docs/graph_cache_design.md): Design document for the graph-based caching system
+
 ## ⚙️ How It Works
 
 This application consists of two main parts:

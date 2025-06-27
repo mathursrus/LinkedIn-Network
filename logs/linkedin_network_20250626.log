@@ -1,0 +1,1 @@
+{"timestamp": "2025-06-26T20:58:55.758351Z", "level": "ERROR", "category": "API", "operation": "test_error", "status": "error", "error": "Test error", "error_type": "ValueError"}

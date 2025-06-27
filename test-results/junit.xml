@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="6" failures="6" errors="0" time="35.356">
+  <testsuite name="LinkedIn Network Assistant E2E Tests" errors="0" failures="6" skipped="0" timestamp="2025-06-26T22:40:53" time="33.737" tests="6">
+    <testcase classname="LinkedIn Network Assistant E2E Tests Complete User Flow should handle complete conversation flow" name="LinkedIn Network Assistant E2E Tests Complete User Flow should handle complete conversation flow" time="0.17">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: &quot;thread-123&quot;
+Received: &quot;msg-123&quot;
+    at Object.toBe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:50:34)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Complete User Flow should handle error scenarios gracefully" name="LinkedIn Network Assistant E2E Tests Complete User Flow should handle error scenarios gracefully" time="0.059">
+      <failure>Error: Network error
+    at Object.&lt;anonymous&gt; (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:80:25)
+    at Promise.then.completed (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\utils.js:231:10)
+    at _callCircusTest (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at _runTest (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\run.js:252:3)
+    at _runTestsForDescribeBlock (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\run.js:126:9)
+    at _runTestsForDescribeBlock (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\run.js:121:9)
+    at _runTestsForDescribeBlock (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\run.js:121:9)
+    at run (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\run.js:71:3)
+    at runAndTransformResultsToJestFormat (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapterInit.js:122:21)
+    at jestAdapter (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:79:19)
+    at runTestInternal (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Complete User Flow should handle rate limiting and retries" name="LinkedIn Network Assistant E2E Tests Complete User Flow should handle rate limiting and retries" time="10.041">
+      <failure>Error: thrown: &quot;Exceeded timeout of 10000 ms for a test.
+Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.&quot;
+    at test (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:108:5)
+    at _dispatchDescribe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:91:26)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:55:5)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:20:3)
+    at _dispatchDescribe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:91:26)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:55:5)
+    at Object.describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:5:1)
+    at Runtime._execModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:1439:24)
+    at Runtime._loadModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:1022:12)
+    at Runtime.requireModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:882:12)
+    at jestAdapter (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:77:13)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runTestInternal (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Complete User Flow should handle long conversations with context" name="LinkedIn Network Assistant E2E Tests Complete User Flow should handle long conversations with context" time="10.021">
+      <failure>Error: thrown: &quot;Exceeded timeout of 10000 ms for a test.
+Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.&quot;
+    at test (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:138:5)
+    at _dispatchDescribe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:91:26)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:55:5)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:20:3)
+    at _dispatchDescribe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:91:26)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:55:5)
+    at Object.describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:5:1)
+    at Runtime._execModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:1439:24)
+    at Runtime._loadModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:1022:12)
+    at Runtime.requireModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:882:12)
+    at jestAdapter (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:77:13)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runTestInternal (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Integration with Backend Services should handle OpenAI API integration" name="LinkedIn Network Assistant E2E Tests Integration with Backend Services should handle OpenAI API integration" time="10.011">
+      <failure>Error: thrown: &quot;Exceeded timeout of 10000 ms for a test.
+Add a timeout value to this test to increase the timeout, if this is a long-running test. See https://jestjs.io/docs/api#testname-fn-timeout.&quot;
+    at test (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:176:5)
+    at _dispatchDescribe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:91:26)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:55:5)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:175:3)
+    at _dispatchDescribe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:91:26)
+    at describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\index.js:55:5)
+    at Object.describe (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:5:1)
+    at Runtime._execModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:1439:24)
+    at Runtime._loadModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:1022:12)
+    at Runtime.requireModule (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runtime\build\index.js:882:12)
+    at jestAdapter (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-circus\build\legacy-code-todo-rewrite\jestAdapter.js:77:13)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runTestInternal (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:367:16)
+    at runTest (C:\Users\sidma\OneDrive\Code\LinkedIn Network\node_modules\jest-runner\build\runTest.js:444:34)</failure>
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Integration with Backend Services should handle file operations" name="LinkedIn Network Assistant E2E Tests Integration with Backend Services should handle file operations" time="0.018">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected substring: &quot;file upload&quot;
+Received string:    &quot;&quot;
+    at Object.toContain (C:\Users\sidma\OneDrive\Code\LinkedIn Network\test_client\e2e.test.js:235:66)</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

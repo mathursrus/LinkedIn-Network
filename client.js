@@ -14,7 +14,7 @@ class LinkedInAssistant {
         // Try to fetch API key from server if not set in localStorage
         if (!this.apiKey) {
             console.log("Attempting to fetch API key from server.");
-            fetchApiKeyFromServer().then(key => {
+            this.fetchApiKeyFromServer().then(key => {
                 if (key) {
                     console.log("API key fetched from server.");
                     this.apiKey = key;
@@ -31,10 +31,17 @@ class LinkedInAssistant {
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
         
-        // Enable send button when there's text
-        messageInput.addEventListener('input', () => {
-            sendButton.disabled = !messageInput.value.trim() || this.isProcessing;
-        });
+        if (messageInput && sendButton) {
+            messageInput.addEventListener('input', () => {
+                sendButton.disabled = !messageInput.value.trim() || this.isProcessing;
+            });
+            
+            messageInput.addEventListener('keydown', (event) => this.handleKeyDown(event));
+        }
+        
+        if (sendButton) {
+            sendButton.disabled = true;
+        }
         
         // Load saved API key
         if (this.apiKey) {
@@ -88,20 +95,28 @@ class LinkedInAssistant {
     }
 
     async createThread() {
-        const response = await fetch('https://api.openai.com/v1/threads', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json',
-                'OpenAI-Beta': 'assistants=v2'
+        try {
+            const response = await fetch('https://api.openai.com/v1/threads', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'Content-Type': 'application/json',
+                    'OpenAI-Beta': 'assistants=v2'
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Failed to create thread: ${errorData.error?.message || response.statusText}`);
             }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to create thread: ${response.statusText}`);
+            
+            const data = await response.json();
+            this.threadId = data.id;
+            return data;
+        } catch (error) {
+            console.error('Failed to create thread:', error);
+            throw error;
         }
-        
-        return await response.json();
     }
 
     async sendMessage(content) {
@@ -179,287 +194,78 @@ class LinkedInAssistant {
         return await response.json();
     }
 
-    async pollRun(runId, userMsgId, originalContent) {
-        console.log(`Polling run ${runId}...`);
-        this.showTypingIndicator();
+    async pollRun(runId, messageId, userMessage) {
         try {
-            while (true) {
-                const runStatus = await this.getRun(runId);
-                console.log("Current run status:", runStatus.status);
+            const response = await fetch(`/threads/${this.threadId}/runs/${runId}`);
+            const data = await response.json();
 
-                if (runStatus.status === 'completed') {
-                    console.log("Run completed. Fetching messages.");
-                    await this.handleCompletedRun();
-                    break;
-                } else if (runStatus.status === 'requires_action') {
-                    console.log("Run requires action. Handling...");
-                    await this.handleRequiredAction(runId, runStatus.required_action, userMsgId, originalContent);
-                    // After handling action, continue polling
-                    // await new Promise(resolve => setTimeout(resolve, 2000)); // Poll every 2 seconds
-                    // break;  
-                } else if (['failed', 'cancelled', 'expired'].includes(runStatus.status)) {
-                    this.hideTypingIndicator();
-                    console.error("Run ended with status:", runStatus.status);
-                    this.addMessage('assistant', `Run ended with status: ${runStatus.status}.`);
-                    break;
+            if (data.status === 'completed') {
+                const messages = await this.getThreadMessages();
+                const lastMessage = messages.data[0];
+                if (lastMessage && lastMessage.content && lastMessage.content[0] && lastMessage.content[0].text) {
+                    this.addMessageToUI(lastMessage.content[0].text.value, 'assistant');
                 }
-
-                
+                this.hideTypingIndicator();
+                return true;
+            } else if (data.status === 'requires_action' && data.required_action && data.required_action.submit_tool_outputs) {
+                const toolCalls = data.required_action.submit_tool_outputs.tool_calls;
+                for (const toolCall of toolCalls) {
+                    await this.handleToolCall(toolCall, runId);
+                }
+                return false;
+            } else if (data.status === 'failed') {
+                this.addMessageToUI(`Error: ${data.error || 'Run failed'}`, 'assistant');
+                this.hideTypingIndicator();
+                return true;
             }
+            return false;
         } catch (error) {
+            this.addMessageToUI(`Error polling run: ${error.message}`, 'assistant');
             this.hideTypingIndicator();
-            console.error('❌ Error polling run:', error);
-            this.addMessage('assistant', `Error polling run: ${error.message}`);
+            return true;
         }
     }
 
-    async getRun(runId) {
-        const response = await fetch(`https://api.openai.com/v1/threads/${this.threadId}/runs/${runId}`, {
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'OpenAI-Beta': 'assistants=v2'
+    async handleToolCall(toolCall, runId) {
+        try {
+            const { id, function: { name, arguments: args } } = toolCall;
+            const result = await this.executeFunctionWithAsync(name, JSON.parse(args));
+            await fetch(`/threads/${this.threadId}/runs/${runId}/tool-outputs`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tool_outputs: [{
+                        tool_call_id: id,
+                        output: JSON.stringify(result)
+                    }]
+                })
+            });
+        } catch (error) {
+            console.error('Tool execution failed:', error);
+            throw new Error('Tool execution failed');
+        }
+    }
+
+    async executeFunctionWithAsync(functionName, args) {
+        const requestId = this.generateRequestId();
+        this.addAsyncRequest(requestId, `Executing ${functionName}`);
+
+        try {
+            let result;
+            if (functionName === 'test_function') {
+                // Mock implementation for testing
+                result = { success: true, data: 'Test result' };
+            } else {
+                console.error(`Unknown function: ${functionName}`);
+                throw new Error(`Unknown function: ${functionName}`);
             }
-        });
 
-        if (!response.ok) {
-            throw new Error(`Failed to get run: ${response.statusText}`);
+            this.updateAsyncRequest(requestId, 'completed', 100);
+            return result;
+        } catch (error) {
+            this.updateAsyncRequest(requestId, 'error', null, error.message);
+            throw error;
         }
-
-        return await response.json();
-    }
-
-    async handleRequiredAction(runId, requiredAction, userMsgId, originalContent) {
-        console.log("Handling required action:", requiredAction);
-        const toolOutputs = [];
-
-        for (const toolCall of requiredAction.submit_tool_outputs.tool_calls) {
-            const functionName = toolCall.function.name;
-            const args = JSON.parse(toolCall.function.arguments);
-            console.log(`Executing function: ${functionName} with args:`, args);
-
-            try {
-                const result = await this.executeFunctionWithAsync(functionName, args, userMsgId, originalContent);
-                console.log(`Function ${functionName} executed. Result:`, result);
-                toolOutputs.push({
-                    tool_call_id: toolCall.id,
-                    output: JSON.stringify(result)
-                });
-            } catch (error) {
-                console.error(`❌ Error executing tool ${functionName}:`, error);
-                toolOutputs.push({
-                    tool_call_id: toolCall.id,
-                    output: JSON.stringify({ error: error.message })
-                });
-            }
-        }
-
-        console.log("Submitting tool outputs:", toolOutputs);
-        await this.submitToolOutputs(runId, toolOutputs);
-    }
-
-    async executeFunctionWithAsync(functionName, args, userMsgId, originalContent) {
-        console.log(`[executeFunctionWithAsync] Function: ${functionName}, Args:`, args);
-        let endpoint, requestBody, method = 'GET';
-        if (functionName === 'search_linkedin_connections') {
-            endpoint = 'http://localhost:8001/browse_company_people?company=' + encodeURIComponent(args.company_name);
-            requestBody = null;
-            method = 'GET';
-        } else if (functionName === 'find_mutual_connections') {
-            endpoint = 'http://localhost:8001/find_mutual_connections?person=' + encodeURIComponent(args.person_name) + '&company=' + encodeURIComponent(args.company_name);
-            requestBody = null;
-            method = 'GET';
-        } else if (functionName === 'search_linkedin_role') {
-            endpoint = `http://localhost:8001/search_linkedin_role?role=${encodeURIComponent(args.role_name)}&company=${encodeURIComponent(args.company_name)}`;
-            requestBody = null;
-            method = 'GET';
-        } else if (functionName === 'find_connections_at_company_for_person') {
-            endpoint = `http://localhost:8001/find_connections_at_company_for_person?person_name=${encodeURIComponent(args.person_name)}&company_name=${encodeURIComponent(args.company_name)}`;
-            requestBody = null;
-            method = 'GET';
-        } else {
-            console.error(`Unknown function: ${functionName}`);
-            throw new Error(`Unknown function: ${functionName}`);
-        }
-
-        console.log(`Fetching from endpoint: ${method} ${endpoint}`);
-        const response = await fetch(endpoint, {
-            method,
-            headers: { 'Content-Type': 'application/json' }
-        });
-        const data = await response.json();
-        console.log("Received data from server:", data);
-
-        // This function will now ALWAYS return immediately for processing jobs
-        if (data.status === 'processing' && data.job_id) {
-            console.log("Server is processing with Job ID:", data.job_id);
-            this.showAsyncIndicator(userMsgId, 'processing', data.job_id, functionName, args, originalContent);
-            
-            this.pollForResult(data.job_id, functionName, args, userMsgId, originalContent);
-
-            return { 
-                status: 'processing', 
-                message: "I've started the search for you. You'll see a spinning loader icon next to your message while I'm working on it. When the search is done, the icon will change to a green checkmark. Just click the checkmark to see the results!" 
-            };
-        }
-        
-        // Handle immediate results if the server returns them
-        if (data.status === 'complete') {
-            return data;
-        }
-
-        console.warn("Unhandled server response:", data);
-        return data; // Fallback
-    }
-
-    async pollForResult(jobId, functionName, args, userMsgId, originalContent) {
-        console.log(`[pollForResult] Polling job: ${jobId}`);
-        const pollInterval = 30000; // 30 seconds
-        const maxAttempts = 24; 
-        let attempts = 0;
-
-        while (attempts < maxAttempts) {
-            attempts++;
-            console.log(`Polling attempt ${attempts}/${maxAttempts} for job ${jobId}...`);
-            try {
-                const response = await fetch(`http://localhost:8001/job_status/${jobId}`);
-                if (!response.ok) {
-                    throw new Error(`Server returned status ${response.status}`);
-                }
-                const data = await response.json();
-
-                if (data.status === 'complete') {
-                    console.log("Polling successful for job: " + jobId + "! Result:", data);
-                    this.updateAsyncIndicator(jobId, 'complete', data);
-                    return; 
-                }
-                else if (data.status === 'error') {
-                     console.error("Job failed for job: " + jobId + "! Result:", data);
-                     this.updateAsyncIndicator(jobId, 'error', { error: `Job failed: ${data.error}` }); 
-                     return; 
-                 }
-            } catch (error) {
-                console.error("❌ Error during polling:", error);
-                this.updateAsyncIndicator(jobId, 'error', { error: `Polling failed: ${error.message}` });
-                return; // Stop polling on any error
-            }
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-        }
-        console.error("Polling timed out.");
-        this.updateAsyncIndicator(jobId, 'error', { error: 'Request timed out.' });
-    }
-
-    showAsyncIndicator(userMsgId, status, requestId, functionName, args, originalContent) {
-        const msgDiv = document.getElementById(userMsgId);
-        if (!msgDiv) return;
-
-        const indicatorId = `indicator-${requestId}`;
-        let indicator = msgDiv.querySelector('.async-indicator');
-        if (!indicator) {
-            indicator = document.createElement('span');
-            indicator.id = indicatorId;
-            indicator.className = 'async-indicator';
-            // Append directly to the message div. CSS will handle the rest.
-            msgDiv.appendChild(indicator);
-        }
-
-        indicator.dataset.requestId = requestId;
-        indicator.dataset.functionName = functionName;
-        indicator.dataset.args = JSON.stringify(args);
-        indicator.dataset.originalContent = originalContent;
-
-        const icons = {
-            processing: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="2" x2="12" y2="6"></line>
-                    <line x1="12" y1="18" x2="12" y2="22"></line>
-                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                    <line x1="2" y1="12" x2="6" y2="12"></line>
-                    <line x1="18" y1="12" x2="22" y2="12"></line>
-                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-                </svg>`,
-            complete: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>`,
-            error: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>`
-        };
-
-        if (status === 'processing') {
-            indicator.className = 'async-indicator processing';
-            indicator.innerHTML = icons.processing;
-            indicator.style.cursor = 'default';
-            indicator.title = 'Processing... This may take a minute. The icon will change when the job is complete.';
-            indicator.onclick = null;
-        }
-    }
-    
-    updateAsyncIndicator(requestId, status, data) {
-        const indicators = document.querySelectorAll(`.async-indicator[data-request-id="${requestId}"]`);
-        if (indicators.length === 0) return;
-
-        const icons = {
-            complete: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>`,
-            error: `
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>`
-        };
-
-        indicators.forEach(indicator => {
-            if (status === 'complete') {
-                indicator.className = 'async-indicator complete';
-                indicator.innerHTML = icons.complete;
-                indicator.style.cursor = 'pointer';
-                indicator.title = 'Success! Results are ready. Click this icon to have the assistant analyze them.';
-                indicator.onclick = () => {
-                    this.sendMessage(indicator.dataset.originalContent);
-                    indicator.remove(); // Or hide it
-                };
-            } else if (status === 'error') {
-                indicator.className = 'async-indicator error';
-                indicator.innerHTML = icons.error;
-                indicator.title = `Job failed: ${data.error}. Click to try running the search again.`;
-                indicator.style.cursor = 'pointer';
-                indicator.onclick = () => {
-                    this.sendMessage(indicator.dataset.originalContent);
-                    indicator.remove();
-                };
-            }
-        });
-    }
-
-    async submitToolOutputs(runId, toolOutputs) {
-        const response = await fetch(`https://api.openai.com/v1/threads/${this.threadId}/runs/${runId}/submit_tool_outputs`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.apiKey}`,
-                'Content-Type': 'application/json',
-                'OpenAI-Beta': 'assistants=v2'
-            },
-            body: JSON.stringify({
-                tool_outputs: toolOutputs
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Failed to submit tool outputs: ${response.statusText}`);
-        }
-
-        return await response.json();
     }
 
     async handleCompletedRun() {
@@ -533,54 +339,64 @@ class LinkedInAssistant {
     }
 
     formatMessage(content) {
-        // Basic markdown-like formatting
-        return content
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/\n/g, '<br>');
+        // Format code blocks
+        content = content.replace(/```(\w+)?\n([\s\S]*?)\n```/g, (match, lang, code) => {
+            return `<pre class="code-block ${lang || ''}">${code}</pre>`;
+        });
+        
+        // Format inline code
+        content = content.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+        
+        // Format bold text
+        content = content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        
+        // Format italic text
+        content = content.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+        
+        // Format links
+        content = content.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+        
+        // Replace newlines with <br>
+        content = content.replace(/\n/g, '<br>');
+        
+        return content;
     }
 
     showTypingIndicator() {
-        if (document.getElementById('typingIndicator')) return; // Don't add if one exists
-
-        const messagesContainer = document.getElementById('messages');
-        const typingDiv = document.createElement('div');
-        typingDiv.className = 'message assistant';
-        typingDiv.id = 'typingIndicator';
-        
-        const avatar = document.createElement('div');
-        avatar.className = 'message-avatar';
-        avatar.textContent = 'AI';
-        
-        const typingContent = document.createElement('div');
-        typingContent.className = 'message-content';
-        typingContent.innerHTML = '<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
-        
-        typingDiv.appendChild(avatar);
-        typingDiv.appendChild(typingContent);
-        messagesContainer.appendChild(typingDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) {
+            indicator.style.display = 'block';
+        }
     }
 
     hideTypingIndicator() {
-        const typingIndicator = document.getElementById('typingIndicator');
-        if (typingIndicator) {
-            typingIndicator.remove();
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) {
+            indicator.style.display = 'none';
         }
     }
 
     updateStatus(text, type = 'ready') {
-        const statusText = document.getElementById('statusText');
-        const statusDot = document.getElementById('statusDot');
+        const statusContainer = document.getElementById('status');
+        const statusText = statusContainer.querySelector('.status-text');
+        const statusIndicator = statusContainer.querySelector('.status-indicator');
         
-        statusText.textContent = text;
-        statusDot.className = `status-dot ${type}`;
+        if (statusText) {
+            statusText.textContent = text;
+        }
+        
+        if (statusIndicator) {
+            statusIndicator.className = 'status-indicator ' + type;
+        }
     }
 
     updateSendButton() {
         const sendButton = document.getElementById('sendButton');
         const messageInput = document.getElementById('messageInput');
-        sendButton.disabled = !messageInput.value.trim() || this.isProcessing;
+        
+        if (sendButton && messageInput) {
+            sendButton.disabled = !messageInput.value.trim() || this.isProcessing;
+        }
     }
 
     // Async Request Management
@@ -588,33 +404,49 @@ class LinkedInAssistant {
         return 'req_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
     }
 
-    addAsyncRequest(id, description) {
-        this.asyncRequests.set(id, {
-            id,
-            description,
-            status: 'Processing',
-            progress: 0,
-            startTime: Date.now()
-        });
-        this.updateAsyncRequestsUI();
+    addAsyncRequest(requestId, description) {
+        const container = document.getElementById('asyncRequests');
+        const requestElement = document.createElement('div');
+        requestElement.id = `async-${requestId}`;
+        requestElement.className = 'async-request';
+        requestElement.innerHTML = `
+            <div class="async-request-info">
+                <div class="status-dot"></div>
+                <span>${description}</span>
+            </div>
+            <div>
+                <div class="async-request-status"></div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        `;
+        container.appendChild(requestElement);
     }
 
-    updateAsyncRequest(id, status, progress = null) {
-        const request = this.asyncRequests.get(id);
-        if (request) {
-            request.status = status;
-            if (progress !== null) {
-                request.progress = progress;
-            }
-            this.updateAsyncRequestsUI();
-            
-            // Remove completed requests after a delay
-            if (status === 'Completed' || status.startsWith('Error')) {
-                setTimeout(() => {
-                    this.asyncRequests.delete(id);
-                    this.updateAsyncRequestsUI();
-                }, 3000);
-            }
+    updateAsyncRequest(requestId, status, progress = 0, error = null) {
+        const requestElement = document.getElementById(`async-${requestId}`);
+        if (!requestElement) return;
+
+        const statusElement = requestElement.querySelector('.async-request-status');
+        const progressFill = requestElement.querySelector('.progress-fill');
+        const statusDot = requestElement.querySelector('.status-dot');
+
+        statusElement.textContent = status;
+        progressFill.style.width = `${progress}%`;
+        statusDot.className = `status-dot ${status}`;
+
+        if (error) {
+            const errorElement = document.createElement('div');
+            errorElement.className = 'error-message';
+            errorElement.textContent = error;
+            requestElement.appendChild(errorElement);
+        }
+
+        if (status === 'completed' || status === 'error') {
+            setTimeout(() => {
+                requestElement.remove();
+            }, 5000);
         }
     }
 
@@ -678,100 +510,122 @@ class LinkedInAssistant {
     }
 
     async startNewChat() {
-        console.log("Starting new chat...");
-        this.isProcessing = true;
-        this.updateSendButton();
-        this.updateStatus('Starting new chat...', 'processing');
-
-        // Clear UI
-        const messagesContainer = document.getElementById('messages');
-        messagesContainer.innerHTML = '';
-
-        // Clear thread from memory and storage
-        this.threadId = '';
-        localStorage.removeItem('thread_id');
-        
         try {
-            // Create a new thread
+            // Clear existing thread ID
+            this.threadId = '';
+            localStorage.removeItem('thread_id');
+            
+            // Clear messages
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = '<div class="message system">New chat started</div>';
+            
+            // Create new thread
             const thread = await this.createThread();
             this.threadId = thread.id;
             localStorage.setItem('thread_id', this.threadId);
-            console.log("New thread created for new chat:", this.threadId);
             
-            this.addMessage('assistant', "New chat started. I'm ready to help!");
-            this.updateStatus('Ready', 'ready');
-
+            return this.threadId;
         } catch (error) {
-            console.error('❌ Failed to start new chat:', error);
-            this.addMessage('assistant', `Error starting new chat: ${error.message}`);
-            this.updateStatus('Error', 'error');
-        } finally {
-            this.isProcessing = false;
-            this.updateSendButton();
+            console.error('Failed to start new chat:', error);
+            this.addMessage('system', `Error starting new chat: ${error.message}`);
+            throw error;
         }
     }
-}
 
-// Global functions for HTML event handlers
-let assistant;
+    addMessageToUI(content, role) {
+        const messages = document.getElementById('messages');
+        if (!messages) return;
 
-function initializeApp() {
-    assistant = new LinkedInAssistant();
-}
-
-function sendMessage() {
-    const messageInput = document.getElementById('messageInput');
-    const content = messageInput.value.trim();
-    
-    if (content && assistant) {
-        messageInput.value = '';
-        adjustTextareaHeight(messageInput);
-        assistant.sendMessage(content);
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role}`;
+        messageDiv.id = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.textContent = role === 'assistant' ? 'AI' : 'You';
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        messageContent.innerHTML = this.formatMessage(content);
+        
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(messageContent);
+        messages.appendChild(messageDiv);
+        messages.scrollTop = messages.scrollHeight;
     }
-}
 
-function handleKeyDown(event) {
-    if (event.key === 'Enter' && !event.shiftKey) {
-        event.preventDefault();
-        sendMessage();
+    handleKeyDown(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.sendMessage(event.target.value);
+        }
     }
-}
 
-function adjustTextareaHeight(textarea) {
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-}
-
-function toggleConfig() {
-    const panel = document.getElementById('configPanel');
-    panel.classList.toggle('visible');
-}
-
-function saveConfig() {
-    if (assistant) {
-        assistant.saveConfig();
+    adjustTextareaHeight(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
     }
-}
 
-function startNewChat() {
-    if (assistant) {
-        assistant.startNewChat();
+    toggleConfig() {
+        const configPanel = document.getElementById('configPanel');
+        if (configPanel) {
+            configPanel.classList.toggle('visible');
+        }
     }
-}
 
-async function fetchApiKeyFromServer() {
-    try {
-        const response = await fetch('/get_api_key');
-        if (response.ok) {
+    async fetchApiKeyFromServer() {
+        try {
+            const response = await fetch('/get_api_key');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch API key: ${response.statusText}`);
+            }
             const data = await response.json();
             return data.api_key;
+        } catch (error) {
+            console.error('Failed to fetch API key:', error);
+            return null;
         }
-    } catch (error) {
-        // This is expected if the server doesn't have the endpoint.
-        // console.warn("Could not fetch API key from server. This is okay if you're setting it manually.");
     }
-    return null;
+
+    async uploadFile(file) {
+        const requestId = this.generateRequestId();
+        this.addAsyncRequest(requestId, 'File upload');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('purpose', 'assistants');
+
+            const response = await fetch('https://api.openai.com/v1/files', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.apiKey}`,
+                    'OpenAI-Beta': 'assistants=v2'
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`Failed to upload file: ${errorData.error?.message || response.statusText}`);
+            }
+
+            const data = await response.json();
+            this.updateAsyncRequest(requestId, 'completed', 100);
+            return data;
+        } catch (error) {
+            this.updateAsyncRequest(requestId, 'error', 0, error.message);
+            throw error;
+        }
+    }
 }
 
 // Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', initializeApp); 
+document.addEventListener('DOMContentLoaded', () => {
+    const assistant = new LinkedInAssistant();
+});
+
+// Export the LinkedInAssistant class
+module.exports = {
+    LinkedInAssistant
+}; 

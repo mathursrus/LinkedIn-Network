@@ -16,11 +16,10 @@ python -m venv venv
 echo "Activating virtual environment and installing dependencies..."
 call venv\Scripts\activate.bat
 
-echo "Installing Playwright version 1.41.2..."
-pip install playwright==1.41.2
+echo "Installing dependencies from requirements.txt..."
+pip install -r requirements.txt
 
 echo "Installing Chromium browser for Playwright..."
 playwright install chromium
 
-echo "Setup complete. You can now run the application."
-deactivate 
+echo "Setup complete! The virtual environment is activated and ready to use." 

@@ -180,7 +180,7 @@ def mark_as_processing(**kwargs):
     save_to_cache(cache_filename, processing_data)
 
 async def extract_people_from_page(page):
-    """Helper function to extract people information from a LinkedIn page using .mb1 blocks"""
+    """Helper function to extract people information from a LinkedIn page using consistent DOM structure"""
     try:
         await page.wait_for_selector('.search-results-container', timeout=30000)
         print("Search results container found")
@@ -191,30 +191,45 @@ async def extract_people_from_page(page):
 
         mypeople = []
         for block in blocks:
-            # Name: first <span aria-hidden="true"> inside <a href*="/in/">
-            name_elem = await block.query_selector('a[href*="/in/"] span[aria-hidden="true"]')
-            name = await name_elem.inner_text() if name_elem else ""
-            # Profile URL from <a href>
-            profile_link_elem = await block.query_selector('a[href*="/in/"]')
-            profile_url = await profile_link_elem.get_attribute('href') if profile_link_elem else ""
+            try:
+                # Name: first <span aria-hidden="true"> inside <a href*="/in/">
+                name_elem = await block.query_selector('a[href*="/in/"] span[aria-hidden="true"]')
+                if not name_elem:
+                    print("Could not find name element")
+                    continue
+                    
+                name = await name_elem.inner_text()
+                
+                # Profile URL from <a href>
+                profile_link_elem = await block.query_selector('a[href*="/in/"]')
+                profile_url = await profile_link_elem.get_attribute('href') if profile_link_elem else ""
 
-            # find the mb1 element
-            mb1_elem = await block.query_selector('.mb1')
-            if not mb1_elem:
-                raise Exception(f"Could not find .mb1 element for {name}")
-
-            # Role and location: 2nd and 3rd top-level divs under .mb1
-            divs = await mb1_elem.query_selector_all(':scope > div')
-            role = await divs[1].inner_text() if len(divs) > 1 else ""
-            location = await divs[2].inner_text() if len(divs) > 2 else ""
-
-            if name:
-                mypeople.append({
-                    "name": name.strip(),
-                    "profile_url": profile_url,
-                    "role": role.strip(),
-                    "location": location.strip()
-                })
+                # Get the parent div of the name element and its siblings
+                # Do this in a single evaluate to maintain node references
+                info = await name_elem.evaluate('''
+                    node => {
+                        const nameParentDiv = node.closest('div');
+                        const parentContainer = nameParentDiv.parentNode;
+                        const roleDiv = parentContainer.nextElementSibling;
+                        const locationDiv = roleDiv ? roleDiv.nextElementSibling : null;
+                        return {
+                            role: roleDiv ? roleDiv.textContent.trim() : '',
+                            location: locationDiv ? locationDiv.textContent.trim() : ''
+                        };
+                    }
+                ''')
+                
+                if name:
+                    mypeople.append({
+                        "name": name.strip(),
+                        "profile_url": profile_url,
+                        "role": info['role'],
+                        "location": info['location']
+                    })
+            except Exception as e:
+                print(f"Error processing block: {e}")
+                continue
+                
         return mypeople
     except Exception as e:
         print(f"Error extracting people from page: {e}")
@@ -280,10 +295,6 @@ async def search_and_process_connections(page, network_type: str, company: str =
     if role:
         params["title"] = role
     
-    # for now, don't process third degree connections
-    if network_type == 'T':
-        return []
-    
     # Use urllib to safely encode parameters
     from urllib.parse import urlencode
     query_string = urlencode(params)
@@ -305,8 +316,6 @@ async def search_and_process_connections(page, network_type: str, company: str =
             print(f"Fetching mutual connections for {person['name']}...")
             person['mutual_connections'] = await get_mutual_connections_for_profile(page, person['profile_url'])
             print(f"Found {len(person.get('mutual_connections', []))} mutual connections")
-        else:
-            person['mutual_connections'] = []
 
         processed_people.append(person)
     
@@ -530,9 +539,28 @@ async def get_job_status(job_id: str):
     return load_from_cache(job_id)
 
 @app.get("/who_can_introduce_me_to_person")
-async def find_mutual_connections(person: str, company: str, background_tasks: BackgroundTasks):
-    """Search for mutual connections with a person at a company"""
-    query_params = {"query_name": "mutual_connections", "person": person, "company": company}
+async def find_mutual_connections(background_tasks: BackgroundTasks, profile_url: str = None, person: str = None, company: str = None):
+    """Search for mutual connections with a person.
+    Either provide:
+    1. profile_url - direct link to person's LinkedIn profile, OR
+    2. person AND company - to search for the person at that company"""
+    
+    if not profile_url and (not person or not company):
+        raise HTTPException(
+            status_code=400, 
+            detail="Must provide either 'profile_url' OR both 'person' and 'company'"
+        )
+
+    # If profile_url is provided, ignore person and company
+    query_params = {
+        "query_name": "mutual_connections",
+        "profile_url": profile_url
+    } if profile_url else {
+        "query_name": "mutual_connections",
+        "person": person,
+        "company": company
+    }
+    
     cache_filename = get_cache_filename(**query_params)
     cached_data = load_from_cache(cache_filename)
     if cached_data:
@@ -542,17 +570,33 @@ async def find_mutual_connections(person: str, company: str, background_tasks: B
             return get_processing_message(**query_params)
 
     mark_as_processing(**query_params)
-    background_tasks.add_task(process_mutual_connections, person, company, cache_filename)
+    background_tasks.add_task(process_mutual_connections, person if not profile_url else None, company if not profile_url else None, cache_filename, profile_url)
     return get_processing_message(**query_params)
 
 @app.get("/who_does_person_know_at_company")
-async def find_connections_at_company_for_person(person_name: str, company_name: str, background_tasks: BackgroundTasks):
-    """Finds connections of a specific person who work at a specific company."""
+async def find_connections_at_company_for_person(background_tasks: BackgroundTasks, profile_url: str = None, person_name: str = None, company_name: str = None):
+    """Find who a specific person knows at a company.
+    Either provide:
+    1. profile_url - direct link to person's LinkedIn profile, OR
+    2. person_name AND company_name - to search for the person at that company"""
+    
+    if not profile_url and (not person_name or not company_name):
+        raise HTTPException(
+            status_code=400, 
+            detail="Must provide either 'profile_url' OR both 'person_name' and 'company_name'"
+        )
+
+    # If profile_url is provided, ignore person_name
     query_params = {
+        "query_name": "connections_through_person",
+        "profile_url": profile_url,
+        "company_name": company_name  # Note: company_name is always needed to filter connections
+    } if profile_url else {
         "query_name": "connections_through_person",
         "person_name": person_name,
         "company_name": company_name
     }
+
     cache_filename = get_cache_filename(**query_params)
     cached_data = load_from_cache(cache_filename)
     if cached_data:
@@ -562,24 +606,25 @@ async def find_connections_at_company_for_person(person_name: str, company_name:
             return get_processing_message(**query_params)
 
     mark_as_processing(**query_params)
-    background_tasks.add_task(process_find_connections_at_company_for_person, person_name, company_name, cache_filename)
+    background_tasks.add_task(process_find_connections_at_company_for_person, person_name if not profile_url else None, company_name, cache_filename, profile_url)
     return get_processing_message(**query_params)
 
-async def process_mutual_connections(person: str, company: str, cache_filename: str):
+async def process_mutual_connections(person: str, company: str, cache_filename: str, profile_url: str = None):
     """Background task to process mutual connections"""
     async with browser_semaphore:
-        print(f"Browser slot acquired for mutual connections with '{person}'. Starting processing.")
+        print(f"Browser slot acquired for mutual connections with '{profile_url if profile_url else person} at {company}'. Starting processing.")
         try:
             # No need to check cache here
-            print(f"Starting mutual connections processing for {person} at {company} (Cache File: {cache_filename})")
+            print(f"Starting mutual connections processing for {profile_url if profile_url else person} at {company} (Cache File: {cache_filename})")
             browser = None
             p = None
             try:
                 browser, page, p = await initialize_browser()
                 if not browser or not page:
                     error_result = {
-                        "person": person,
-                        "company": company,
+                        "profile_url": profile_url if profile_url else None,
+                        "person": person if not profile_url else None,
+                        "company": company if not profile_url else None,
                         "status": "error",
                         "timestamp": datetime.now().isoformat(),
                         "error": "Failed to initialize browser or login to LinkedIn"
@@ -587,35 +632,39 @@ async def process_mutual_connections(person: str, company: str, cache_filename: 
                     with open(cache_filename, 'w') as f:
                         json.dump(error_result, f, indent=2)
                     return error_result
-                
+
                 try:
-                    # Search for the person at the company
-                    search_url = f"https://www.linkedin.com/search/results/people/?keywords={person}&origin=GLOBAL_SEARCH_HEADER&company={company}"
-                    print(f"\nNavigating to search results: {search_url}")
-                    await page.goto(search_url)
-                    
-                    # Wait for search results
-                    await page.wait_for_selector('.search-results-container', timeout=30000)
-                    await page.wait_for_timeout(5000)
-                    
-                    # ensure there is only 1 result
-                    results = await page.query_selector_all('[data-view-name="search-entity-result-universal-template"]')
-                    if len(results) != 1:
-                        raise Exception(f"Expected 1 result for {person} at {company}, but found {len(results)}")
-                    
-                    # Find the person's profile link
-                    profile_link = await results[0].query_selector('a[href*="/in/"]')
-                    if not profile_link:
-                        raise Exception(f"Could not find profile for {person} at {company}")
-                    
-                    # Get the profile URL
-                    profile_url = await profile_link.get_attribute('href')
-                    if not profile_url:
-                        raise Exception(f"Could not get profile URL for {person}")
-                    
+                    navigate_to_url = profile_url
+                    # Search for the person at the company or use provided URL
+                    if not navigate_to_url:
+                        search_url = f"https://www.linkedin.com/search/results/people/?keywords={person}&origin=GLOBAL_SEARCH_HEADER&company={company}"
+                        print(f"\nNavigating to search results: {search_url}")
+                        await page.goto(search_url)
+                        
+                        # Wait for search results
+                        await page.wait_for_selector('.search-results-container', timeout=30000)
+                        await page.wait_for_timeout(5000)
+                        
+                        # ensure there is only 1 result
+                        results = await page.query_selector_all('[data-view-name="search-entity-result-universal-template"]')
+                        if len(results) > 1:
+                            raise Exception(f"Found multiple profiles for {person} at {company}. Please provide their LinkedIn profile URL to avoid ambiguity.")
+                        elif len(results) == 0:
+                            raise Exception(f"Could not find profile for {person} at {company}. Please provide their LinkedIn profile URL.")
+                        
+                        # Find the person's profile link
+                        profile_link = await results[0].query_selector('a[href*="/in/"]')
+                        if not profile_link:
+                            raise Exception(f"Could not find profile for {person} at {company}. Please provide their LinkedIn profile URL.")
+                        
+                        # Get the profile URL
+                        navigate_to_url = await profile_link.get_attribute('href')
+                        if not navigate_to_url:
+                            raise Exception(f"Could not get profile URL for {person} at {company}. Please provide their LinkedIn profile URL.")
+
                     # Get mutual connections using the shared function
-                    mutual_connections = await get_mutual_connections_for_profile(page, profile_url)
-                    
+                    mutual_connections = await get_mutual_connections_for_profile(page, navigate_to_url)
+
                     print("\nClosing browser...")
                     await browser.close()
                     await p.stop()
@@ -624,8 +673,9 @@ async def process_mutual_connections(person: str, company: str, cache_filename: 
                     
                     # Save results to cache
                     result = {
-                        "person": person,
-                        "company": company,
+                        "profile_url": profile_url if profile_url else None,
+                        "person": person if not profile_url else None,
+                        "company": company if not profile_url else None,
                         "status": "complete",
                         "timestamp": datetime.now().isoformat(),
                         "mutual_connections": mutual_connections
@@ -634,31 +684,134 @@ async def process_mutual_connections(person: str, company: str, cache_filename: 
                         json.dump(result, f, indent=2)
                     
                     return result
-                    
+
+                except Exception as e:
+                    raise e
                 finally:
                     if browser:
                         await browser.close()
                     if p:
                         await p.stop()
-            
+
             except Exception as e:
-                # If there's an error, save error state to cache
-                error_result = {
-                    "person": person,
-                    "company": company,
-                    "status": "error",
-                    "timestamp": datetime.now().isoformat(),
-                    "error": str(e)
-                }
-                with open(cache_filename, 'w') as f:
-                    json.dump(error_result, f, indent=2)
-                if browser:
-                    await browser.close()
-                if p:
-                    await p.stop()
                 raise e
+
+        except Exception as e:
+            # If there's an error, save error state to cache
+            error_result = {
+                "profile_url": profile_url,
+                "person": person if not profile_url else None,
+                "company": company,
+                "status": "error",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            }
+            with open(cache_filename, 'w') as f:
+                json.dump(error_result, f, indent=2)
+            if browser:
+                await browser.close()
+            if p:
+                await p.stop()
+            raise e
         finally:
-            print(f"Browser slot released for mutual connections with '{person}'.")
+            print(f"Browser slot released for mutual connections with '{profile_url if profile_url else person}'.")
+
+async def process_find_connections_at_company_for_person(person_name: str, company_name: str, cache_filename: str, profile_url: str = None):
+    """Background task to find connections of a person at a company."""
+    async with browser_semaphore:
+        print(f"Browser slot acquired for finding connections at '{company_name}' for '{profile_url if profile_url else person_name}'.")
+        try:
+            browser = None
+            p = None
+            try:
+                browser, page, p = await initialize_browser()
+                if not browser or not page:
+                    error_result = {
+                        "profile_url": profile_url if profile_url else None,
+                        "person_name": person_name if not profile_url else None,
+                        "company_name": company_name,
+                        "status": "error",
+                        "timestamp": datetime.now().isoformat(),
+                        "error": "Failed to initialize browser or login to LinkedIn"
+                    }
+                    with open(cache_filename, 'w') as f:
+                        json.dump(error_result, f, indent=2)
+                    return error_result
+
+                try:
+                    navigate_to_url = profile_url
+                    # Navigate to profile or search for person
+                    if not profile_url:
+                        search_url = f'https://www.linkedin.com/search/results/people/?keywords={person_name}&origin=GLOBAL_SEARCH_HEADER&network=%5B"F"%5D'
+                        await page.goto(search_url)
+                        
+                        # Wait for search results
+                        await page.wait_for_selector('.search-results-container', timeout=30000)
+                        await page.wait_for_timeout(5000)
+                        
+                        # ensure there is only 1 result
+                        results = await page.query_selector_all('[data-view-name="search-entity-result-universal-template"]')
+                        if len(results) > 1:
+                            raise Exception(f"Found multiple profiles for {person_name}. Please provide their LinkedIn profile URL to avoid ambiguity.")
+                        elif len(results) == 0:
+                            raise Exception(f"Could not find profile for {person_name}. Remember you can only look at connections of people who you are directly connected to.")
+                        
+                        # Find the person's profile link
+                        profile_link = await results[0].query_selector('a[href*="/in/"]')
+                        if not profile_link:
+                            raise Exception(f"Could not find profile for {person_name}")
+                        
+                        # Get the profile URL
+                        navigate_to_url = await profile_link.get_attribute('href')
+                        if not navigate_to_url:
+                            raise Exception(f"Could not get profile URL for {person_name}")
+                        
+                    await page.goto(navigate_to_url)
+
+                    # Get connections at company
+                    connections = await connections_at_company_for_person(page, company_name)
+
+                    result = {
+                        "profile_url": profile_url if profile_url else None,
+                        "person_name": person_name if not profile_url else None,
+                        "company_name": company_name,
+                        "status": "complete",
+                        "timestamp": datetime.now().isoformat(),
+                        "connections": connections
+                    }
+                    with open(cache_filename, 'w') as f:
+                        json.dump(result, f, indent=2)
+                    return result
+
+                except Exception as e:
+                    raise e
+                finally:
+                    if browser:
+                        await browser.close()
+                    if p:
+                        await p.stop()
+
+            except Exception as e:
+                raise e
+
+        except Exception as e:
+            error_result = {
+                "profile_url": profile_url,
+                "person_name": person_name if not profile_url else None,
+                "company_name": company_name,
+                "status": "error",
+                "timestamp": datetime.now().isoformat(),
+                "error": str(e)
+            }
+            with open(cache_filename, 'w') as f:
+                json.dump(error_result, f, indent=2)
+            if browser:
+                await browser.close()
+            if p:
+                await p.stop()
+            raise e
+        finally:
+            print(f"Browser slot released for finding connections at '{company_name}' for '{profile_url if profile_url else person_name}'.")
 
 async def process_role_search(role: str, company: str, cache_filename: str):
     """Background task to process role search"""
@@ -674,7 +827,7 @@ async def process_role_search(role: str, company: str, cache_filename: str):
                 if not browser or not page:
                     raise Exception("Failed to initialize browser or login to LinkedIn")
                 
-                # Search for 1st and 2nd level connections matching the role
+                # Search for 1st, 2nd, and 3rd degree connections matching the role
                 first_degree = await search_and_process_connections(page, 'F', company=company, role=role)
                 second_degree = await search_and_process_connections(page, 'S', company=company, role=role)
                 third_degree = await search_and_process_connections(page, 'T', company=company, role=role)
@@ -708,94 +861,36 @@ async def process_role_search(role: str, company: str, cache_filename: str):
         finally:
             print(f"Browser slot released for role '{role}'.")
 
-async def process_find_connections_at_company_for_person(person_name: str, company_name: str, cache_filename: str):
-    """Background task to find connections of a person at a company."""
-    async with browser_semaphore:
-        print(f"Browser slot acquired for finding '{person_name}' connections at '{company_name}'.")
-        try:
-            people, error = await connections_at_company_for_person(person_name, company_name)
-
-            if error:
-                raise Exception(error)
-
-            result = {
-                "person_name": person_name,
-                "company_name": company_name,
-                "status": "complete",
-                "timestamp": datetime.now().isoformat(),
-                "people": people
-            }
-            save_to_cache(cache_filename, result)
-
-        except Exception as e:
-            error_result = {
-                "person_name": person_name,
-                "company_name": company_name,
-                "status": "error",
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            }
-            save_to_cache(cache_filename, error_result)
-        finally:
-            print(f"Browser slot released for finding '{person_name}' connections at '{company_name}'.")
-
-async def connections_at_company_for_person(person_name: str, company_name: str):
-    browser = None
-    p = None
+async def connections_at_company_for_person(page, company_name):
     try:
-        browser, page, p = await initialize_browser()
-        if not browser or not page:
-            return None, "Failed to initialize browser or login to LinkedIn"
-
-        # 1. Go to Person X's profile.
-        print(f"Searching for profile of '{person_name}'")
-        search_url = f"https://www.linkedin.com/search/results/people/?keywords={urllib.parse.quote(person_name)}&origin=GLOBAL_SEARCH_HEADER"
-        await page.goto(search_url, wait_until="load", timeout=60000)
-        await page.wait_for_selector('.search-results-container', timeout=30000)
-
-        # ensure there is only 1 result
-        results = await page.query_selector_all('[data-view-name="search-entity-result-universal-template"]')
-        if len(results) != 1:
-            raise Exception(f"Expected 1 result for {person_name}, but found {len(results)}. Be more specific about the person name.")
-
-        profile_link_element = await results[0].query_selector('a[href*="/in/"]')
-        if not profile_link_element:
-            return None, f"Could not find a LinkedIn profile for '{person_name}' in search results."
-        
-        print("Found profile link. Clicking to navigate...")
-        await profile_link_element.click()
-        await page.wait_for_load_state("load", timeout=60000)
-
-        # 2. Get the connections link and click it.
         print("Looking for connections link...")
         connections_link_selector = 'a[href*="?connectionOf="]'
         await page.wait_for_selector(connections_link_selector, timeout=30000)
         connections_url = await page.get_attribute(connections_link_selector, 'href')
         if not connections_url:
-                return None, f"Could not find connections URL for {person_name}."
-        await page.goto(f"https://www.linkedin.com{connections_url}", wait_until="load", timeout=60000)
+            raise Exception(f"Could not find connections URL from {page.url}.")
+        await page.goto(f"https://www.linkedin.com{connections_url}&company={company_name}", wait_until="load", timeout=60000)
 
-        # 3. Click the "Current company" filter button.
-        print("Applying 'Current company' filter...")
-        await page.get_by_role("button", name="Current company").click()
+        #print("Applying 'Current company' filter...")
+        #await page.get_by_role("button", name="Current company").click()
         
         # 4. Type the company name into the input box.
-        print(f"Typing company name '{company_name}' into filter...")
-        company_input_selector = 'input[aria-label^="Add a company"]'
-        await page.wait_for_selector(company_input_selector, timeout=10000)
-        await page.fill(company_input_selector, company_name)
+        #print(f"Typing company name '{company_name}' into filter...")
+        #company_input_selector = 'input[aria-label^="Add a company"]'
+        #await page.wait_for_selector(company_input_selector, timeout=10000)
+        #await page.fill(company_input_selector, company_name)
 
         # 5. Click the first result in the listbox that shows up.
-        print("Selecting first company from listbox...")
-        listbox_option_selector = '[role="listbox"]'
-        await page.wait_for_selector(listbox_option_selector, timeout=10000)
+        #print("Selecting first company from listbox...")
+        #listbox_option_selector = '[role="listbox"]'
+        #await page.wait_for_selector(listbox_option_selector, timeout=10000)
         # hit the down arrow once followed by enter
-        await page.keyboard.press("ArrowDown")
-        await page.keyboard.press("Enter")
+        #await page.keyboard.press("ArrowDown")
+        #await page.keyboard.press("Enter")
         
         # 6. Click the "Show results" button.
-        print("Clicking 'Show results' button...")
-        await page.get_by_role("button", name="Show results").click()
+        #print("Clicking 'Show results' button...")
+        #await page.get_by_role("button", name="Show results").click()
 
         # 7. Wait for results to refresh and extract.
         print("Waiting for filtered results to load...")
@@ -803,16 +898,11 @@ async def connections_at_company_for_person(person_name: str, company_name: str)
         
         print("Extracting people from final results page...")
         people = await extract_people_from_page(page)
-        return people, None
+        return people
 
     except Exception as e:
         print(f"An error occurred in find_connections_at_company_for_person: {e}")
         return None, str(e)
-    finally:
-        if browser:
-            await browser.close()
-        if p:
-            await p.stop()
 
 if __name__ == "__main__":
     # Normal server startup (browser installation check is handled at the top)

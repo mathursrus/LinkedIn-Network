@@ -225,6 +225,9 @@ def test_company_connections_workflow(session):
     # first ensure that the status is complete
     assert results["status"] == "complete"
     
+    # assert that the results are not empty
+    assert len(results["people"]) > 0
+    
     # Validate results
     if len(results) > 0:  # Only check structure if we have results
         for person in results["people"]:
@@ -253,9 +256,12 @@ def test_person_company_connections_workflow(session):
     # first ensure that the status is complete
     assert results["status"] == "complete"
     
+    # assert that the results are not empty
+    assert len(results["connections"]) > 0
+    
     # Validate results
     if len(results) > 0:  # Only check structure if we have results
-        for person in results["people"]:
+        for person in results["connections"]:
             for field in test_data["expected_fields"]:
                 # ensure the field is not empty or undefined
                 assert field in person and person[field] is not None and person[field] != ""

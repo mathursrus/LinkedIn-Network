@@ -243,16 +243,10 @@ async def get_mutual_connections_for_profile(page, profile_url):
         
         try:
             # Wait for the profile section to load
-            await page.wait_for_selector('.ph5.pb5', timeout=15000)
+            await page.wait_for_selector('a[data-test-app-aware-link][href*="/search/results/people/"]', timeout=15000)
             
-            # Find the profile block
-            profile_block = await page.query_selector('.ph5.pb5')
-            if not profile_block:
-                print("Could not find profile block")
-                return []
-                
-            # Find the mutual connections link within the profile block - an a class element with a href attribute that contains /search/results/
-            mutual_connections_link = await profile_block.query_selector('a[data-test-app-aware-link][href*="/search/results/people/"]')
+            # Find the mutual connections link within the profile block - an a class element with a href attribute that contains /search/results/people/
+            mutual_connections_link = await page.query_selector('a[data-test-app-aware-link][href*="/search/results/people/"]')
             
             if mutual_connections_link:
                 # Get the href attribute
@@ -471,7 +465,7 @@ async def process_company_connections(company: str, cache_filename: str):
                         "company": company,
                         "status": "complete",
                         "timestamp": datetime.now().isoformat(),
-                        "people": people
+                        "results": people
                     }
                     save_to_cache(cache_filename, result)
                     return result
@@ -678,7 +672,7 @@ async def process_mutual_connections(person: str, company: str, cache_filename: 
                         "company": company if not profile_url else None,
                         "status": "complete",
                         "timestamp": datetime.now().isoformat(),
-                        "mutual_connections": mutual_connections
+                        "results": mutual_connections
                     }
                     with open(cache_filename, 'w') as f:
                         json.dump(result, f, indent=2)
@@ -777,7 +771,7 @@ async def process_find_connections_at_company_for_person(person_name: str, compa
                         "company_name": company_name,
                         "status": "complete",
                         "timestamp": datetime.now().isoformat(),
-                        "connections": connections
+                        "results": connections
                     }
                     with open(cache_filename, 'w') as f:
                         json.dump(result, f, indent=2)
@@ -846,7 +840,7 @@ async def process_role_search(role: str, company: str, cache_filename: str):
                     "company": company,
                     "status": "complete",
                     "timestamp": datetime.now().isoformat(),
-                    "people": people
+                    "results": people
                 }
                 save_to_cache(cache_filename, result)
                 return result

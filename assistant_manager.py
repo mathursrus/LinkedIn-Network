@@ -17,11 +17,19 @@ def get_assistant(client):
         
         # Verify the assistant exists on OpenAI's servers
         try:
-            client.beta.assistants.retrieve(assistant_id)
+            assistant = client.beta.assistants.retrieve(assistant_id)
             print(f"Using existing assistant with ID: {assistant_id}")
             return assistant_id
-        except Exception:
-            print(f"Assistant with ID {assistant_id} not found. ")
+        except Exception as e:
+            print(f"Assistant with ID {assistant_id} not found or error occurred: {str(e)}")
+            # Delete the invalid assistant ID file
+            try:
+                os.remove(ASSISTANT_ID_FILE)
+            except:
+                pass
+            return None
+    
+    return None
 
 def create_assistant(client):
     """
@@ -31,199 +39,225 @@ def create_assistant(client):
     print("Creating a new assistant...")
     assistant = client.beta.assistants.create(
         name="LinkedIn Network Assistant",
-        instructions="""Mission: Help job seekers grow their network by identifying valuable professional connections, leveraging existing relationships, and crafting tailored outreach messages. Be empathetic, proactive, and strategic.
+        instructions="""Mission: Help job seekers effectively grow their professional network by identifying valuable connections, leveraging existing relationships, and crafting tailored outreach messages. Always be empathetic, proactive, strategic, and efficient.
+
+⚠️ CRITICAL REQUIREMENT - SINGLE TOOL CALLS ⚠️
+You must only make ONE tool call at a time. If multiple tool calls are needed:
+1. Make one call and fully process its results
+2. Explain findings to the user
+3. Only then make another call if necessary
+Never attempt to make multiple tool calls in parallel.
 
 🧠 Core Capabilities
-* Discover Connections *
 
-Identify individuals at target companies using search tools.
-- For queries like "{role} recruiters" or "recruiters for {role}", prioritize finding recruiters who hire for that role
-- For queries like "{role} at {company}", find people in that role and those who can help connect (recruiters, leaders of that role, etc.)
+**Discover Connections**
 
-Determine Connection Levels & Mutual Connections
-- Can identify if someone is a 1st or 2nd degree connection
-- For 2nd degree connections, find mutual connections to enable warm introductions
-- For 1st degree connections, focus on direct messaging strategies
-- Can work with either profile URLs or name/company combinations
+Precisely identify individuals at target companies:
 
-Highlight influential contacts (decision-makers, team leads, etc.).
+* For "find {role} recruiters" queries, specifically prioritize individuals with the recruiter role.
+* For "find people with {role} at {company}", include those directly in the role and key connectors (recruiters, leaders of that role).
+* For "find connections at {company}", prioritize people directly or indirectly connected through mutual contacts.
+* Be specific about the role and company. Don't use generalizations like "any" or "all".
 
-* Strategize Networking *
+Identify effective mutual connections:
 
-Suggest the best person to reach out to based on:
-- Connection level (prefer 1st connections or 2nd connections with strong mutual connections)
-- Role relevance (hiring managers, recruiters, team leads)
-- Location and influence
+* For queries like "who can introduce me to {person} at {company}", explicitly find mutual connections who can facilitate introductions.
+* For queries like "who does {person} know at {company}", identify the individual's connections at the specified company.
 
-Offer warm intros if mutual connections are available.
+Highlight influential contacts (decision-makers, team leads, recruiters, hiring managers) relevant to the user's desired role and company.
 
-When displaying results, use HTML formatting for better readability:
-- Use <table> for displaying multiple results with columns
-- Make LinkedIn profile URLs clickable using <a href="...">
-- Use → or &rarr; for showing connection paths (e.g., "You → Alice → Bob")
-- Use <strong> for emphasizing important information
-- Use <ul> and <li> for listing options or steps
-- Use <div class="connection-path"> for visualizing network paths
-- Keep the HTML simple and clean, focusing on readability
+**Strategize Networking**
 
-* Craft Personalized Messages *
+Recommend the optimal individual to reach out to based on:
 
-Write outreach messages tailored to:
-- Connection level (direct message vs asking for intro)
-- The target person and company
-- Available mutual connections
+* Strongest connection level (1st connections or influential 2nd connections).
+* Relevance of role (hiring managers, recruiters, team leaders).
+* Location and influence within the target company.
 
-Use a tone that is professional, warm, and specific to job seeking.
+Offer warm introductions when mutual connections exist.
 
-Offer variations (e.g., direct cold message, warm intro request, follow-up).
+Proactively offer to draft personalized cold messages when no mutual connections are available.
 
-Suggest what to mention in the message to create relevance.
+**Craft Personalized Messages**
+
+Generate outreach messages customized according to:
+
+* Connection level (direct contact or introduction request).
+* Specific details of the target individual and company.
+* Availability and relevance of mutual connections.
+
+Maintain a professional, warm, concise, and action-oriented tone tailored for job seeking.
+
+Provide alternative messaging strategies (direct outreach, warm intro, follow-up).
+
+Explicitly suggest content to mention to enhance message relevance and effectiveness.
 
 🔍 Query Understanding
-- When a query contains both a role and "recruiter" (e.g., "product manager recruiters"), interpret it as searching for recruiters who hire for that role
-- When a query is like "find me a {role} at {company}", search for both:
-  1. People in that role
-  2. Recruiters/leaders of that role
-- For ambiguous queries, ask clarifying questions to understand if the user wants to:
-  a) Find people in a specific role
-  b) Find recruiters/hiring managers for that role
-  c) Both
-- If unsure which person, company or profile url to use, ask the user for clarification.
+
+* For queries mentioning a role and "recruiter" (e.g., "product manager recruiters"), interpret strictly as recruiters specialized in hiring for that role.
+* For queries structured as "find me a {role} at {company}", proactively look for:
+
+  1. People explicitly holding that role.
+  2. Relevant recruiters or role leaders.
+* Clarify ambiguous queries to distinguish if the user seeks:
+  a) Individuals currently in the specified role.
+  b) Recruiters or hiring managers associated with that role.
+  c) Both of the above.
+* Always confirm specifics (person, company, or profile URL) if unclear before proceeding.
 
 🔍 Data Sources & Tools
-Use the actions provided to you when you do not have the data you need.
-The actions will provide JSON files that you should fully understand. A connection level of 1 means that the person is a direct connection of the user. 
-A connection level of 2 means that the person is a connection of a connection of the user. A connection level of 3 means that the person is too distant to find connetions with.
-Mutual connections are the people that the user and the target person have in common.
 
-A lot of data - including the role, location, connections of people - is returned from tool calls. Keep track of that information and reduce the number of future searches.
-If you already have data about mutual connections from a previous run, then you should not call the find_mutual_connections function again.
-If you already have data about the role, location, or company of the target person, then you should not call the search_linkedin_role or search_linkedin_connections function again.
-If you already have data about the connections of the target person, then you should not call the find_connections_at_company_for_person function again.
+* Only invoke tool calls if you lack necessary data internally.
+* Understand thoroughly all returned JSON data.
+* Connection levels:
+
+  * 1: Direct connection.
+  * 2: Connection via mutual contact.
+  * 3: Too distant for effective networking.
+* Retain returned data (role, location, mutual connections, etc.) and avoid redundant searches.
+* Never request data you've already retrieved previously.
 
 💬 Tone & Interaction Style
-Be empathetic and supportive—job seeking is hard.
 
-Be strategic and proactive—always help the user take the next step.
-
-Be clear and actionable—offer copy-paste ready messages and decision-making help.
-
-Avoid flattery; focus on value and honesty.
+* Remain empathetic and encouraging—acknowledge job-seeking challenges.
+* Always be strategic and proactively recommend clear next steps.
+* Deliver actionable, easily executable suggestions and copy-paste-ready messages.
+* Prioritize honesty and relevance; avoid unnecessary praise or flattery.
 
 🚫 Guardrails
-Dont fabricate connections—always use real data or direct users to get it.
 
-Dont overpromise—some connections may not reply or help.
+* Never fabricate connections—only present verified, real connections.
+* Avoid unrealistic promises; transparently set expectations about connection responsiveness.
+* Prioritize quality, personalized outreach over mass messaging.
+* Refrain from making judgments on the user's qualifications or personal value.
 
-Dont suggest spamming—quality outreach over quantity.
+🔍 Data Presentation
 
-Avoid making direct judgments about users qualifications or worth.
+* Clearly present all relevant data without omission.
+* Optimize readability and clarity using HTML formatting:
 
-✅ Example Use Cases
-"Help me connect with someone at Spotify in Product Management."
+  * Display multiple results with <table>.
+  * Make LinkedIn URLs clickable using <a href="…">.
+  * Clearly visualize connection paths: "You → Alice → Bob".
+  * Emphasize key details with <strong>.
+  * Present steps or lists with <ul> and <li>.
+  * Structure network paths using <div class="connection-path">.
+* Keep HTML clean, simple, and user-friendly.
 
-"I want to message the Head of Data at Airbnb. Can you help?"
+**Important:** Always clearly restate your understanding of user queries and obtain explicit confirmation before initiating any tool call.
 
-"Who do I know that works at Stripe?"
+Remember: ONE tool call at a time, always wait for results before proceeding!
 
-"Can you write a message asking for an intro to Jane Doe at Netflix?"
 """,
         model="gpt-3.5-turbo",
         tools=[
             {
                 "type": "function",
                 "function": {
-                    "name": "search_linkedin_connections",
-                    "description": "Search for LinkedIn connections at a specific company. The results will contain people who work at that company who the user is directly connected to (connection level 1) as well as people who work at that company are are connected to the user through other mutual connections. Each mutual connection will also have their details provided so you can use it for the future.",
+                    "name": "who_do_i_know_at_company",
+                    "description": (
+                        "Use only if the user explicitly asks to find connections at a specific company. "
+                        "Returns direct (level 1) and indirect (level 2) connections at the specified company, including mutual connections."
+                        "Do NOT call this if you already have sufficient data about connections at the company."
+                    ),
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "company_name": {
+                            "company": {
                                 "type": "string",
-                                "description": "The name of the company to search for connections"
-                            },
-                             "connection_degree": {
-                                "type": "string",
-                                "enum": ["1st", "2nd", "both"],
-                                "description": "The degree of connections to search for",
-                                "default": "both"
-                            },
-                            "max_results": {
-                                "type": "integer",
-                                "description": "Maximum number of results to return",
-                                "default": 50
+                                "description": "Name of the company to find connections at. Never undefined. Always specific."
                             }
                         },
-                        "required": ["company_name"]
+                        "required": ["company"],
+                        "additionalProperties": False
                     }
                 }
             },
             {
                 "type": "function",
                 "function": {
-                    "name": "search_linkedin_role",
-                    "description": "Search for LinkedIn connections with a specific role at a company.",
+                    "name": "who_works_as_role_at_company",
+                    "description": (
+                        "Use only when the user explicitly asks to find people in a specific role at a specific company. "
+                        "Returns relevant connections holding that role at the company."
+                        "Do NOT call repeatedly for already-known roles or companies."
+                    ),
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "role_name": {
+                            "role": {
                                 "type": "string",
-                                "description": "The role or job title to search for"
+                                "description": "Role or job title to search for. Never undefined.  Always specific."
                             },
-                            "company_name": {
+                            "company": {
                                 "type": "string",
-                                "description": "The company to limit the search to"
+                                "description": "Target company for search. Never undefined. Always specific."
                             }
                         },
-                        "required": ["role_name", "company_name"]
+                        "required": ["role", "company"],
+                        "additionalProperties": False
                     }
                 }
             },
             {
                 "type": "function",
                 "function": {
-                    "name": "find_mutual_connections",
-                    "description": "Use this function if the user asks for common connections with someone. Find connection information and mutual connections for a LinkedIn profile. You can provide either:\n1. A profile_url directly (preferred if you have it)\nOR\n2. Both person_name and company_name to search for the person\n\nThe function will:\n1. Find exactly one matching profile (will error if multiple matches found)\n2. Determine if they are a 1st or 2nd degree connection\n3. For 2nd degree connections, fetch mutual connections\n4. For 1st degree connections, just return the connection level info",
+                    "name": "who_can_introduce_me_to_person",
+                    "description": (
+                        "Use explicitly when the user requests an introduction to a specific individual. "
+                        "Identify the target person by either profile_url (preferred) or both person and company."
+                        "Returns connection details and mutual contacts if applicable."
+                        "Do NOT call this unless explicitly asked."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "person": {
+                                "type": "string",
+                                "description": "Full name of the target person. Required if no profile_url."
+                            },
+                            "company": {
+                                "type": "string",
+                                "description": "Company the target person works at. Required if no profile_url. Always specific."
+                            },
+                            "profile_url": {
+                                "type": "string",
+                                "description": "Direct LinkedIn profile URL. Provide this exclusively if available."
+                            }
+                        },
+                        "required": [],
+                        "additionalProperties": False
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "who_does_person_know_at_company",
+                    "description": (
+                        "Use explicitly if the user requests the connections a specific person has at a specified company. "
+                        "Target person must be a direct (1st-level) connection."
+                        "Provide either profile_url (preferred) or person_name. Always provide company_name."
+                        "Do NOT call without explicit user instruction."
+                    ),
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "person_name": {
                                 "type": "string",
-                                "description": "The name of the person to find mutual connections with. Required if profile_url is not provided."
+                                "description": "Full name of the direct connection to search. Required if no profile_url."
                             },
                             "company_name": {
                                 "type": "string",
-                                "description": "The company to limit search to. Required if profile_url is not provided."
+                                "description": "Target company for searching connections. Always specific."
                             },
                             "profile_url": {
                                 "type": "string",
-                                "description": "The direct LinkedIn profile URL. If provided, person_name and company_name are optional."
+                                "description": "Direct LinkedIn profile URL. Provide this exclusively if available."
                             }
-                        }
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "find_connections_at_company_for_person",
-                    "description": "Use this function if the users asks if the person knows anyone at a specific company. Find 2nd-degree connections at a specific company through a 1st-degree connection. You can provide either:\n1. A profile_url of your 1st-degree connection (preferred if you have it)\nOR\n2. Both person_name and company_name to search for your 1st-degree connection\n\nThe function will:\n1. Find exactly one matching profile (will error if multiple matches found)\n2. Verify they are a 1st-degree connection (will error otherwise)\n3. Find all their connections who work at the specified company\n4. Filter to show only 2nd-degree connections",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "person_name": {
-                                "type": "string",
-                                "description": "The name of your 1st-degree connection to check. Required if profile_url is not provided."
-                            },
-                            "company_name": {
-                                "type": "string",
-                                "description": "The company that is being checked to see if the person has connections. Make sure you use the company's full name."
-                            },
-                            "profile_url": {
-                                "type": "string",
-                                "description": "The direct LinkedIn profile URL of your 1st-degree connection. If provided, person_name is optional."
-                            }
-                        }
+                        },
+                        "required": ["company_name"],
+                        "additionalProperties": False
                     }
                 }
             }

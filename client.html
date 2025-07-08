@@ -50,10 +50,13 @@
             font-weight: 500;
             cursor: pointer;
             transition: background-color 0.2s;
+            text-decoration: none;
+            display: inline-block;
         }
 
         #newChatButton:hover {
             background: #0d8f6b;
+            text-decoration: none;
         }
         
         .config-toggle {
@@ -345,7 +348,7 @@
     <div class="header">
         <h1>LinkedIn Network Assistant</h1>
         <div class="header-controls">
-            <button id="newChatButton" onclick="startNewChat()">+ New Chat</button>
+            <a href="#" id="newChatButton" onclick="return startNewChat()">+ New Chat</a>
             <button class="config-toggle" onclick="toggleConfig()" title="Settings">⚙️</button>
         </div>
     </div>

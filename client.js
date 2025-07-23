@@ -235,8 +235,22 @@ class LinkedInAssistant {
                 console.log("Current run status:", runStatus.status);
 
                 if (runStatus.status === 'completed') {
-                    if (showInUI) console.log("Run completed. Fetching messages.");
-                    if (showInUI) await this.handleCompletedRun();
+                    if (showInUI) {
+                        console.log("Run completed. Fetching messages.");
+                        await this.handleCompletedRun();
+                    } else {
+                        // For async calls, fetch and return the assistant's response
+                        const messages = await this.getThreadMessages();
+                        const lastMessage = messages
+                            .filter(m => m.role === 'assistant')
+                            .sort((a, b) => b.created_at - a.created_at)[0];
+                        
+                        if (lastMessage && lastMessage.content && lastMessage.content[0] && lastMessage.content[0].type === 'text') {
+                            return lastMessage.content[0].text.value;
+                        } else {
+                            return null;
+                        }
+                    }
                     break;
                 } else if (runStatus.status === 'requires_action') {
                     console.log("Run requires action. Handling...");
@@ -247,14 +261,22 @@ class LinkedInAssistant {
                 } else if (['failed', 'cancelled', 'expired'].includes(runStatus.status)) {
                     if (showInUI) this.hideTypingIndicator();
                     console.error("Run ended with status:", runStatus.status);
-                    if (showInUI) this.addMessage('assistant', `Hmmm ... I hit the following error: ${runStatus.error?.message}.`);
+                    if (showInUI) {
+                        this.addMessage('assistant', `Hmmm ... I hit the following error: ${runStatus.error?.message}.`);
+                    } else {
+                        return `Error: ${runStatus.error?.message || runStatus.status}`;
+                    }
                     break;
                 }    
             }
         } catch (error) {
             this.hideTypingIndicator();
             console.error('❌ Error polling run:', error);
-            this.addMessage('assistant', `Error polling run: ${error.message}`);
+            if (showInUI) {
+                this.addMessage('assistant', `Error polling run: ${error.message}`);
+            } else {
+                return `Error polling run: ${error.message}`;
+            }
         }
     }
 
@@ -286,22 +308,14 @@ class LinkedInAssistant {
             const result = await this.executeFunctionWithAsync(runId, toolCall.id, functionName, args, userMsgId, originalContent);
             console.log(`Function ${functionName} executed. Result:`, result);
             
-            // If it's a processing result, store context and start polling
+            // If it's a processing result, polling is already started in executeFunctionWithAsync
             if (result.status === 'processing' && result.job_id) {
-                const asyncContext = {
-                    run_id: runId,
-                    tool_call_id: toolCall.id,
-                    job_id: result.job_id,
-                    original_user_message: originalContent
-                };
-                
                 // This function will now ALWAYS return immediately for processing jobs
                 this.addMessage('assistant', "I'm searching " + functionName + " with args " + JSON.stringify(args) + ". You'll see a spinning loader icon next to your message while I'm working on it. When the search is done, the icon will change to either a green checkmark or a red X. Just click the icon to see the results!");
                 
                 this.hideTypingIndicator();
                 
-                // Start polling but don't wait for it
-                this.pollJobStatus(result.job_id, this.generateRequestId(), asyncContext);
+                // Polling is already started in executeFunctionWithAsync - no need to start it again
                 return "server_processing";
             }
             
@@ -778,6 +792,7 @@ class LinkedInAssistant {
                             throw error;
                         }
                     }
+                    return data;
                 } else if (data.status === 'processing') {
                     await new Promise(resolve => setTimeout(resolve, 5000));
                     retries++;
@@ -859,7 +874,19 @@ async function fetchApiKeyFromServer() {
 }
 
 // Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', initializeApp); 
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+}
 
-    
-    
+// Export for Node.js/Jest testing
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { 
+        LinkedInAssistant,
+        handleKeyDown,
+        adjustTextareaHeight,
+        toggleConfig,
+        saveConfig,
+        startNewChat,
+        fetchApiKeyFromServer
+    };
+}

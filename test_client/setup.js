@@ -72,6 +72,8 @@ const setupDOM = () => {
       <button onclick="saveConfig()">Save</button>
     </div>
     <div id="asyncRequests" class="async-requests"></div>
+    <button onclick="toggleConfig()">⚙️</button>
+    <button onclick="startNewChat()">New Chat</button>
   `;
 };
 

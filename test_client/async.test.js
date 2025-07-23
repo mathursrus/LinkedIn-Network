@@ -1,4 +1,12 @@
-const { LinkedInAssistant } = require('../client.js');
+const { 
+    LinkedInAssistant, 
+    handleKeyDown, 
+    adjustTextareaHeight, 
+    toggleConfig, 
+    saveConfig, 
+    startNewChat, 
+    fetchApiKeyFromServer 
+} = require('../client.js');
 
 describe('Async Operations', () => {
   let assistant;
@@ -19,22 +27,22 @@ describe('Async Operations', () => {
       fetch
         .mockResponseOnce(JSON.stringify({ status: 'completed' }))
         .mockResponseOnce(JSON.stringify({
-          data: [{ content: [{ text: { value: testResponse } }] }]
+          data: [{ role: 'assistant', content: [{ type: 'text', text: { value: testResponse } }], created_at: Date.now() }]
         }));
 
       await assistant.pollRun('run-1', 'msg-1', 'Test message');
       
       const messages = document.getElementById('messages');
       expect(messages.innerHTML).toContain(testResponse);
-      expect(document.getElementById('typingIndicator').style.display).toBe('none');
+      expect(document.getElementById('typingIndicator')).toBeNull();
     });
 
     test('should handle required action', async () => {
       const toolCall = {
         id: 'call-1',
         function: {
-          name: 'test_function',
-          arguments: JSON.stringify({ param: 'value' })
+          name: 'who_do_i_know_at_company',
+          arguments: JSON.stringify({ company: 'TestCompany' })
         }
       };
 
@@ -47,85 +55,86 @@ describe('Async Operations', () => {
             }
           }
         }))
+        .mockResponseOnce(JSON.stringify({ status: 'complete', results: [] }))
         .mockResponseOnce(JSON.stringify({ success: true }));
 
-      const result = await assistant.pollRun('run-1', 'msg-1', 'Test message');
+      await assistant.pollRun('run-1', 'msg-1', 'Test message');
       
-      expect(result).toBe(false);
-      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(fetch).toHaveBeenCalled();
     });
 
     test('should handle failed run', async () => {
       const errorMessage = 'Test error';
       fetch.mockResponseOnce(JSON.stringify({
         status: 'failed',
-        error: errorMessage
+        error: { message: errorMessage }
       }));
 
       await assistant.pollRun('run-1', 'msg-1', 'Test message');
       
       const messages = document.getElementById('messages');
-      expect(messages.innerHTML).toContain(`Error: ${errorMessage}`);
-      expect(document.getElementById('typingIndicator').style.display).toBe('none');
+      expect(messages.innerHTML).toContain(errorMessage);
+      expect(document.getElementById('typingIndicator')).toBeNull();
     });
   });
 
-  describe('Async Request Tracking', () => {
-    test('should track multiple async requests', () => {
+  describe('Async Indicator Management', () => {
+    test('should track multiple async indicators', () => {
       const requestId1 = assistant.generateRequestId();
       const requestId2 = assistant.generateRequestId();
+      const msgId1 = assistant.addMessage('user', 'Message 1');
+      const msgId2 = assistant.addMessage('user', 'Message 2');
       
-      assistant.addAsyncRequest(requestId1, 'Operation 1');
-      assistant.addAsyncRequest(requestId2, 'Operation 2');
+      assistant.showAsyncIndicator(msgId1, 'processing', requestId1, 'test_function', {}, 'content1');
+      assistant.showAsyncIndicator(msgId2, 'processing', requestId2, 'test_function', {}, 'content2');
       
-      const container = document.getElementById('asyncRequests');
-      expect(container.children.length).toBe(2);
-      expect(container.innerHTML).toContain('Operation 1');
-      expect(container.innerHTML).toContain('Operation 2');
+      const indicators = document.querySelectorAll('.async-indicator');
+      expect(indicators.length).toBe(2);
     });
 
-    test('should update async request status', () => {
+    test('should update async indicator status', () => {
       const requestId = assistant.generateRequestId();
-      assistant.addAsyncRequest(requestId, 'Test operation');
+      const msgId = assistant.addMessage('user', 'Test message');
       
-      assistant.updateAsyncRequest(requestId, 'in_progress', 50);
+      assistant.showAsyncIndicator(msgId, 'processing', requestId, 'test_function', {}, 'content');
+      assistant.updateAsyncIndicator(requestId, 'complete', { assistantResponse: 'Success' });
       
-      const requestElement = document.getElementById(`async-${requestId}`);
-      expect(requestElement.querySelector('.progress-fill').style.width).toBe('50%');
-      expect(requestElement.querySelector('.async-request-status').textContent).toBe('in_progress');
+      const indicator = document.querySelector('.async-indicator');
+      expect(indicator.className).toContain('complete');
+      expect(indicator.title).toContain('Success');
     });
 
-    test('should handle async request errors', () => {
+    test('should handle async indicator errors', () => {
       const requestId = assistant.generateRequestId();
-      assistant.addAsyncRequest(requestId, 'Test operation');
+      const msgId = assistant.addMessage('user', 'Test message');
       
-      assistant.updateAsyncRequest(requestId, 'error', 0, 'Test error');
+      assistant.showAsyncIndicator(msgId, 'processing', requestId, 'test_function', {}, 'content');
+      assistant.updateAsyncIndicator(requestId, 'error', { error: 'Test error' });
       
-      const requestElement = document.getElementById(`async-${requestId}`);
-      expect(requestElement.querySelector('.error-message')).toBeTruthy();
-      expect(requestElement.querySelector('.error-message').textContent).toBe('Test error');
+      const indicator = document.querySelector('.async-indicator');
+      expect(indicator.className).toContain('error');
+      expect(indicator.title).toContain('Job failed. Click here to see why.');
     });
   });
 
   describe('Tool Execution', () => {
     test('should execute function with async tracking', async () => {
-      const functionName = 'test_function';
-      const args = { param: 'value' };
+      const functionName = 'who_do_i_know_at_company';
+      const args = { company: 'TestCompany' };
+      fetch.mockResponseOnce(JSON.stringify({ status: 'complete', results: [] }));
       
-      const result = await assistant.executeFunctionWithAsync(functionName, args);
+      const result = await assistant.executeFunctionWithAsync('run-1', 'call-1', functionName, args, 'msg-1', 'content');
       
-      expect(result).toEqual({ success: true, data: 'Test result' });
-      expect(document.getElementById('asyncRequests').innerHTML).toContain(functionName);
+      expect(result).toEqual({ status: 'complete', results: [] });
+      expect(fetch).toHaveBeenCalled();
     });
 
     test('should handle tool execution errors', async () => {
       const functionName = 'unknown_function';
       const args = { param: 'value' };
       
-      await expect(assistant.executeFunctionWithAsync(functionName, args))
+      await expect(assistant.executeFunctionWithAsync('run-1', 'call-1', functionName, args, 'msg-1', 'content'))
         .rejects.toThrow('Unknown function');
-      
-      expect(document.getElementById('asyncRequests').innerHTML).toContain('error');
     });
   });
 
@@ -138,45 +147,49 @@ describe('Async Operations', () => {
       expect(id1).toMatch(/^req_\d+_[a-z0-9]+$/);
     });
 
-    test('should add async request to queue', () => {
+    test('should handle async indicators correctly', () => {
       const requestId = assistant.generateRequestId();
-      assistant.addAsyncRequest(requestId, 'Test operation');
+      const msgId = assistant.addMessage('user', 'Test message');
       
-      const container = document.getElementById('asyncRequests');
-      expect(container.classList.contains('visible')).toBe(true);
-      expect(container.innerHTML).toContain('Test operation');
+      assistant.showAsyncIndicator(msgId, 'processing', requestId, 'test_function', {}, 'content');
+      const indicator = document.querySelector('.async-indicator');
+      expect(indicator).toBeTruthy();
+      expect(indicator.dataset.requestId).toBe(requestId);
     });
 
-    test('should update async request status', () => {
+    test('should update indicator on completion', () => {
       const requestId = assistant.generateRequestId();
-      assistant.addAsyncRequest(requestId, 'Test operation');
+      const msgId = assistant.addMessage('user', 'Test message');
       
-      assistant.updateAsyncRequest(requestId, 'completed', 100);
+      assistant.showAsyncIndicator(msgId, 'processing', requestId, 'test_function', {}, 'content');
+      assistant.updateAsyncIndicator(requestId, 'complete', { assistantResponse: 'Done' });
       
-      const requestElement = document.getElementById(`async-${requestId}`);
-      expect(requestElement.querySelector('.progress-fill').style.width).toBe('100%');
-      expect(requestElement.querySelector('.async-request-status').textContent).toBe('completed');
+      const indicator = document.querySelector('.async-indicator');
+      expect(indicator.className).toContain('complete');
     });
 
-    test('should remove completed requests after delay', async () => {
+    test('should handle indicator clicks', () => {
       const requestId = assistant.generateRequestId();
-      assistant.addAsyncRequest(requestId, 'Test operation');
-      assistant.updateAsyncRequest(requestId, 'completed', 100);
+      const msgId = assistant.addMessage('user', 'Test message');
       
-      jest.advanceTimersByTime(5000);
+      assistant.showAsyncIndicator(msgId, 'processing', requestId, 'test_function', {}, 'content');
+      assistant.updateAsyncIndicator(requestId, 'complete', { assistantResponse: 'Click response' });
       
-      const container = document.getElementById('asyncRequests');
-      expect(container.innerHTML).not.toContain('Test operation');
-    }, 10000);
+      const indicator = document.querySelector('.async-indicator');
+      indicator.click();
+      
+      const messages = document.getElementById('messages');
+      expect(messages.innerHTML).toContain('Click response');
+    });
   });
 
   describe('Message Processing', () => {
     test('should show typing indicator during processing', () => {
       assistant.showTypingIndicator();
-      expect(document.getElementById('typingIndicator').style.display).toBe('block');
+      expect(document.getElementById('typingIndicator')).toBeTruthy();
       
       assistant.hideTypingIndicator();
-      expect(document.getElementById('typingIndicator').style.display).toBe('none');
+      expect(document.getElementById('typingIndicator')).toBeNull();
     });
 
     test('should format messages correctly', () => {

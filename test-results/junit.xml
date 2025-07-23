@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="49" failures="0" errors="0" time="4.158">
+  <testsuite name="Critical Utility Functions" errors="0" failures="0" skipped="0" timestamp="2025-07-23T23:36:04" time="2.182" tests="10">
+    <testcase classname="Critical Utility Functions Error Handling should handle network errors gracefully" name="Critical Utility Functions Error Handling should handle network errors gracefully" time="0.071">
+    </testcase>
+    <testcase classname="Critical Utility Functions Error Handling should handle API rate limits" name="Critical Utility Functions Error Handling should handle API rate limits" time="0.019">
+    </testcase>
+    <testcase classname="Critical Utility Functions Error Handling should handle invalid API responses" name="Critical Utility Functions Error Handling should handle invalid API responses" time="0.014">
+    </testcase>
+    <testcase classname="Critical Utility Functions Message Formatting Edge Cases should handle nested code blocks" name="Critical Utility Functions Message Formatting Edge Cases should handle nested code blocks" time="0.006">
+    </testcase>
+    <testcase classname="Critical Utility Functions Message Formatting Edge Cases should handle malformed markdown links" name="Critical Utility Functions Message Formatting Edge Cases should handle malformed markdown links" time="0.01">
+    </testcase>
+    <testcase classname="Critical Utility Functions Message Formatting Edge Cases should handle special characters in code blocks" name="Critical Utility Functions Message Formatting Edge Cases should handle special characters in code blocks" time="0.014">
+    </testcase>
+    <testcase classname="Critical Utility Functions Configuration Edge Cases should handle empty configuration values" name="Critical Utility Functions Configuration Edge Cases should handle empty configuration values" time="0.008">
+    </testcase>
+    <testcase classname="Critical Utility Functions Configuration Edge Cases should handle server API key fetch failure" name="Critical Utility Functions Configuration Edge Cases should handle server API key fetch failure" time="0.008">
+    </testcase>
+    <testcase classname="Critical Utility Functions Critical UI Behavior should prevent message sending when processing" name="Critical Utility Functions Critical UI Behavior should prevent message sending when processing" time="0.019">
+    </testcase>
+    <testcase classname="Critical Utility Functions Critical UI Behavior should handle textarea height adjustment with large content" name="Critical Utility Functions Critical UI Behavior should handle textarea height adjustment with large content" time="0.011">
+    </testcase>
+  </testsuite>
+  <testsuite name="LinkedInAssistant Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-07-23T23:36:04" time="2.423" tests="9">
+    <testcase classname="LinkedInAssistant Integration Tests Critical Integration Flows should handle complete message flow with async operations" name="LinkedInAssistant Integration Tests Critical Integration Flows should handle complete message flow with async operations" time="0.14">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Critical Integration Flows should handle configuration loading and initialization" name="LinkedInAssistant Integration Tests Critical Integration Flows should handle configuration loading and initialization" time="0.022">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Critical Integration Flows should handle new chat creation and state reset" name="LinkedInAssistant Integration Tests Critical Integration Flows should handle new chat creation and state reset" time="0.009">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Error Recovery and Resilience should recover from failed run and retry" name="LinkedInAssistant Integration Tests Error Recovery and Resilience should recover from failed run and retry" time="0.011">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Error Recovery and Resilience should handle network interruptions gracefully" name="LinkedInAssistant Integration Tests Error Recovery and Resilience should handle network interruptions gracefully" time="0.018">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Async Operation Management should handle multiple concurrent async operations" name="LinkedInAssistant Integration Tests Async Operation Management should handle multiple concurrent async operations" time="0.038">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Async Operation Management should handle async operation timeouts" name="LinkedInAssistant Integration Tests Async Operation Management should handle async operation timeouts" time="0.027">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Message Formatting and Display should handle complex markdown formatting" name="LinkedInAssistant Integration Tests Message Formatting and Display should handle complex markdown formatting" time="0.022">
+    </testcase>
+    <testcase classname="LinkedInAssistant Integration Tests Message Formatting and Display should handle special characters and HTML entities" name="LinkedInAssistant Integration Tests Message Formatting and Display should handle special characters and HTML entities" time="0.02">
+    </testcase>
+  </testsuite>
+  <testsuite name="Duplicate Submission Prevention" errors="0" failures="0" skipped="0" timestamp="2025-07-23T23:36:04" time="2.474" tests="6">
+    <testcase classname="Duplicate Submission Prevention Core Duplicate Prevention should not call submitToolOutputs twice when job completes" name="Duplicate Submission Prevention Core Duplicate Prevention should not call submitToolOutputs twice when job completes" time="0.09">
+    </testcase>
+    <testcase classname="Duplicate Submission Prevention Core Duplicate Prevention should not continue polling after submitToolOutputs fails" name="Duplicate Submission Prevention Core Duplicate Prevention should not continue polling after submitToolOutputs fails" time="0.022">
+    </testcase>
+    <testcase classname="Duplicate Submission Prevention Core Duplicate Prevention should handle empty results without duplicate submission" name="Duplicate Submission Prevention Core Duplicate Prevention should handle empty results without duplicate submission" time="0.029">
+    </testcase>
+    <testcase classname="Duplicate Submission Prevention Core Duplicate Prevention should handle server error without duplicate submission" name="Duplicate Submission Prevention Core Duplicate Prevention should handle server error without duplicate submission" time="0.024">
+    </testcase>
+    <testcase classname="Duplicate Submission Prevention SubmitToolOutputs Edge Cases should check run status before submitting" name="Duplicate Submission Prevention SubmitToolOutputs Edge Cases should check run status before submitting" time="0.061">
+    </testcase>
+    <testcase classname="Duplicate Submission Prevention SubmitToolOutputs Edge Cases should only submit when run requires action" name="Duplicate Submission Prevention SubmitToolOutputs Edge Cases should only submit when run requires action" time="0.006">
+    </testcase>
+  </testsuite>
+  <testsuite name="LinkedIn Network Assistant E2E Tests" errors="0" failures="0" skipped="0" timestamp="2025-07-23T23:36:04" time="2.636" tests="9">
+    <testcase classname="LinkedIn Network Assistant E2E Tests Complete User Workflows should handle complete LinkedIn network analysis workflow" name="LinkedIn Network Assistant E2E Tests Complete User Workflows should handle complete LinkedIn network analysis workflow" time="0.152">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Complete User Workflows should handle connection message crafting workflow" name="LinkedIn Network Assistant E2E Tests Complete User Workflows should handle connection message crafting workflow" time="0.021">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Error Scenarios and Recovery should handle API key configuration errors gracefully" name="LinkedIn Network Assistant E2E Tests Error Scenarios and Recovery should handle API key configuration errors gracefully" time="0.017">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Error Scenarios and Recovery should handle network timeouts and retry" name="LinkedIn Network Assistant E2E Tests Error Scenarios and Recovery should handle network timeouts and retry" time="0.02">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Error Scenarios and Recovery should handle rate limiting gracefully" name="LinkedIn Network Assistant E2E Tests Error Scenarios and Recovery should handle rate limiting gracefully" time="0.009">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests UI Interaction Flows should handle keyboard shortcuts correctly" name="LinkedIn Network Assistant E2E Tests UI Interaction Flows should handle keyboard shortcuts correctly" time="0.009">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests UI Interaction Flows should handle configuration panel interactions" name="LinkedIn Network Assistant E2E Tests UI Interaction Flows should handle configuration panel interactions" time="0.007">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests UI Interaction Flows should handle new chat creation flow" name="LinkedIn Network Assistant E2E Tests UI Interaction Flows should handle new chat creation flow" time="0.005">
+    </testcase>
+    <testcase classname="LinkedIn Network Assistant E2E Tests Async Operation Integration should handle multiple concurrent async operations" name="LinkedIn Network Assistant E2E Tests Async Operation Integration should handle multiple concurrent async operations" time="0.012">
+    </testcase>
+  </testsuite>
+  <testsuite name="Async Operations" errors="0" failures="0" skipped="0" timestamp="2025-07-23T23:36:06" time="0.571" tests="15">
+    <testcase classname="Async Operations Run Polling should handle completed run" name="Async Operations Run Polling should handle completed run" time="0.022">
+    </testcase>
+    <testcase classname="Async Operations Run Polling should handle required action" name="Async Operations Run Polling should handle required action" time="0.011">
+    </testcase>
+    <testcase classname="Async Operations Run Polling should handle failed run" name="Async Operations Run Polling should handle failed run" time="0.013">
+    </testcase>
+    <testcase classname="Async Operations Async Indicator Management should track multiple async indicators" name="Async Operations Async Indicator Management should track multiple async indicators" time="0.015">
+    </testcase>
+    <testcase classname="Async Operations Async Indicator Management should update async indicator status" name="Async Operations Async Indicator Management should update async indicator status" time="0.011">
+    </testcase>
+    <testcase classname="Async Operations Async Indicator Management should handle async indicator errors" name="Async Operations Async Indicator Management should handle async indicator errors" time="0.011">
+    </testcase>
+    <testcase classname="Async Operations Tool Execution should execute function with async tracking" name="Async Operations Tool Execution should execute function with async tracking" time="0.006">
+    </testcase>
+    <testcase classname="Async Operations Tool Execution should handle tool execution errors" name="Async Operations Tool Execution should handle tool execution errors" time="0.033">
+    </testcase>
+    <testcase classname="Async Operations Request Management should generate unique request IDs" name="Async Operations Request Management should generate unique request IDs" time="0.005">
+    </testcase>
+    <testcase classname="Async Operations Request Management should handle async indicators correctly" name="Async Operations Request Management should handle async indicators correctly" time="0.01">
+    </testcase>
+    <testcase classname="Async Operations Request Management should update indicator on completion" name="Async Operations Request Management should update indicator on completion" time="0.008">
+    </testcase>
+    <testcase classname="Async Operations Request Management should handle indicator clicks" name="Async Operations Request Management should handle indicator clicks" time="0.008">
+    </testcase>
+    <testcase classname="Async Operations Message Processing should show typing indicator during processing" name="Async Operations Message Processing should show typing indicator during processing" time="0.004">
+    </testcase>
+    <testcase classname="Async Operations Message Processing should format messages correctly" name="Async Operations Message Processing should format messages correctly" time="0.006">
+    </testcase>
+    <testcase classname="Async Operations Message Processing should handle markdown formatting" name="Async Operations Message Processing should handle markdown formatting" time="0.005">
+    </testcase>
+  </testsuite>
+</testsuites>

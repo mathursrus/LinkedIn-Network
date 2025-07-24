@@ -259,7 +259,7 @@ async def get_mutual_connections_for_profile(page, profile_url):
                     await page.wait_for_timeout(2000)  # Wait for page to load
                     
                     # Extract mutual connections using the common extraction function
-                    mutual_connections = await extract_people_from_page(page)
+                    mutual_connections = await navigate_all_pages(page, extract_people_from_page)
                     print("mutual_connections", mutual_connections)
                     return mutual_connections
             else:
@@ -274,10 +274,41 @@ async def get_mutual_connections_for_profile(page, profile_url):
         print(f"Error navigating to profile: {e}")
         raise e
 
+
+
+async def navigate_all_pages(page, extraction_function, max_pages=None):
+    """Navigate through all pages by incrementing the &page= param in the URL and extract data."""
+    import re
+    all_results = []
+    current_page = 1
+    # Extract the base URL (without &page=...)
+    url = page.url
+    print(f"Starting navigation with URL: {url}")
+    # Remove any existing &page=... param
+    url = re.sub(r'([&?])page=\d+', '', url)
+    # Ensure we have a separator
+    sep = '&' if '?' in url else '?'
+    while True:
+        paged_url = f"{url}{sep}page={current_page}"
+        print(f"Navigating to: {paged_url}")
+        await page.goto(paged_url)
+        await page.wait_for_timeout(2000)
+        page_results = await extraction_function(page)
+        print(f"Page {current_page} results: {len(page_results)}")
+        if not page_results:
+            print("No more results, stopping.")
+            break
+        all_results.extend(page_results)
+        if max_pages and current_page >= max_pages:
+            break
+        current_page += 1
+    return all_results
+
 async def search_and_process_connections(page, network_type: str, company: str = None, role: str = None):
     """
     Helper function to search and process connections of a specific type,
     with optional filtering by company and role.
+    Now supports multi-page extraction.
     """
     # Build the search URL
     base_url = "https://www.linkedin.com/search/results/people/?"
@@ -288,32 +319,23 @@ async def search_and_process_connections(page, network_type: str, company: str =
         params["company"] = company
     if role:
         params["title"] = role
-    
-    # Use urllib to safely encode parameters
     from urllib.parse import urlencode
     query_string = urlencode(params)
     search_url = f"{base_url}{query_string}"
-    
     print(f"\nNavigating to search: {search_url}")
     await page.goto(search_url)
-    
-    mypeople = await extract_people_from_page(page)
+    # Use pagination-aware extraction
+    all_people = await navigate_all_pages(page, extract_people_from_page, max_pages=10)
     processed_people = []
-    
-    # Process all people found
-    for person in mypeople:
+    for person in all_people:
         person['connection_level'] = 1 if network_type == 'F' else 2 if network_type == 'S' else 3
         print(f"\nProcessing: {person['name']} ({person.get('role', 'N/A')})")
-        
-        # For 2nd-degree connections, fetch mutual connections
         if network_type == 'S' and person.get('profile_url'):
             print(f"Fetching mutual connections for {person['name']}...")
             person['mutual_connections'] = await get_mutual_connections_for_profile(page, person['profile_url'])
             print(f"Found {len(person.get('mutual_connections', []))} mutual connections")
-
         processed_people.append(person)
-    
-    print(f"\nProcessed {len(processed_people)} {network_type}-degree connections for the search.")
+    print(f"\nProcessed {len(processed_people)} {network_type}-degree connections across all pages.")
     return processed_people
 
 async def initialize_browser():
@@ -891,7 +913,7 @@ async def connections_at_company_for_person(page, company_name):
         await page.wait_for_selector('.search-results-container', timeout=30000)
         
         print("Extracting people from final results page...")
-        people = await extract_people_from_page(page)
+        people = await navigate_all_pages(page, extract_people_from_page)
         return people
 
     except Exception as e:

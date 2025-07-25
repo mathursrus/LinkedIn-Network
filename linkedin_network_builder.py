@@ -511,6 +511,59 @@ async def process_company_connections(company: str, cache_filename: str):
         finally:
             print(f"Browser slot released for company: {company}.")
 
+async def process_entire_network(cache_filename: str):
+    """Background task to crawl all 1st and 2nd degree connections and their mutual connections."""
+    async with browser_semaphore:
+        print(f"Browser slot acquired for entire network crawl. Starting processing.")
+        try:
+            browser = None
+            p = None
+            try:
+                browser, page, p = await initialize_browser()
+                if not browser or not page:
+                    error_result = {
+                        "status": "error",
+                        "timestamp": datetime.now().isoformat(),
+                        "error": "Failed to initialize browser or login to LinkedIn"
+                    }
+                    save_to_cache(cache_filename, error_result)
+                    return error_result
+                try:
+                    # Search for 1st degree connections
+                    first_degree = await search_and_process_connections(page, 'F')
+                    # Search for 2nd degree connections
+                    second_degree = await search_and_process_connections(page, 'S')
+                    # Combine all results
+                    people = first_degree + second_degree
+                    print("\nClosing browser...")
+                    await browser.close()
+                    await p.stop()
+                    print("Done!")
+                    print(f"Total people found: {len(people)}")
+                    # Save results to cache AND update job status
+                    result = {
+                        "status": "complete",
+                        "timestamp": datetime.now().isoformat(),
+                        "results": people
+                    }
+                    save_to_cache(cache_filename, result)
+                    return result
+                finally:
+                    if browser:
+                        await browser.close()
+                    if p:
+                        await p.stop()
+            except Exception as e:
+                error_result = {
+                    "status": "error",
+                    "timestamp": datetime.now().isoformat(),
+                    "error": str(e)
+                }
+                save_to_cache(cache_filename, error_result)
+                raise e
+        finally:
+            print(f"Browser slot released for entire network crawl.")
+
 @app.get("/get_assistant_config")
 async def get_assistant_config():
     return {"assistant_id": ASSISTANT_ID, "openai_api_key": openai_api_key}
@@ -553,6 +606,21 @@ async def get_job_status(job_id: str):
     if not os.path.exists(job_id):
         raise HTTPException(status_code=404, detail="Job not found")
     return load_from_cache(job_id)
+
+@app.get("/crawl_my_entire_network")
+async def crawl_my_entire_network(background_tasks: BackgroundTasks):
+    """Crawl all 1st and 2nd degree connections and their mutual connections."""
+    query_params = {"query_name": "entire_network_crawl"}
+    cache_filename = get_cache_filename(**query_params)
+    cached_data = load_from_cache(cache_filename)
+    if cached_data:
+        if cached_data.get('status') == 'complete':
+            return cached_data
+        elif cached_data.get('status') == 'processing':
+            return get_processing_message(**query_params)
+    mark_as_processing(**query_params)
+    background_tasks.add_task(process_entire_network, cache_filename)
+    return get_processing_message(**query_params)
 
 @app.get("/who_can_introduce_me_to_person")
 async def find_mutual_connections(background_tasks: BackgroundTasks, profile_url: str = None, person: str = None, company: str = None):
